@@ -4,17 +4,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define EXIT_ON_ERROR(call, msg) \
+#define EXIT_ON_ERROR(call, limit, msg) \
     do { \
-        if ((call) < 0) { \
+        if ((call) < (limit)) { \
             perror(msg); \
             exit(EXIT_FAILURE); \
         } \
     } while (0)
 
-#define LOG_ON_ERROR(call, msg) \
+#define LOG_ON_ERROR(call, limit, msg) \
     do { \
-        if ((call) < 0) { \
+        if ((call) < (limit)) { \
             perror(msg); \
         } \
     } while (0)
