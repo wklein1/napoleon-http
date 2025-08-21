@@ -30,7 +30,7 @@ int server_start(const struct server_config *config, int (*client_handler)(int))
     EXIT_ON_ERROR( bind(server_sock, (struct sockaddr*)&addr, sizeof(addr)), 0 ,"bind" );
     EXIT_ON_ERROR( listen(server_sock, backlog), 0, "listen" );
 
-    printf("listening on port %d\n", port);
+    printf("\nlistening on port %d\n\n", port);
 
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -46,10 +46,11 @@ int server_start(const struct server_config *config, int (*client_handler)(int))
             inet_ntop(AF_INET, &client_addr.sin_addr, client_ip_str, sizeof(client_ip_str));
             printf("accepted connection from %s:%d \n",client_ip_str, client_port);
 			
-			char buffer[100] = {0};
+		/*
+		 * char buffer[100] = {0};
             read(client_sock, buffer, sizeof(buffer));
             printf("%s\n", buffer);
-			
+		*/	
 			client_handler(client_sock);
             
 			LOG_ON_ERROR( close(client_sock), 0, "close client_sock");
