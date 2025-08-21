@@ -1,12 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <errno.h>
 #include <libgen.h>
-#include "../include/error.h"
 #include "../include/server.h"
 #include "../include/app.h"
 

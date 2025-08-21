@@ -41,6 +41,7 @@
 *.su
 *.idb
 *.pdb
+vgcore.*
 
 # Kernel Module Compile Results
 *.mod*
@@ -53,3 +54,6 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+#directories
+build
