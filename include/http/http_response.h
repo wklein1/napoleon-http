@@ -1,18 +1,6 @@
-#ifndef HTTP_H
-#define HTTP_H
+#ifndef HTTP_RESPONSE_H
+#define HTTP_RESPONSE_H
 #include <stddef.h>
-
-
-/**
- * @brief Struct containing a file extension and it's MIME type string.
- *
- * Represents a simple mapping of a file extension (e.g. "html", "json")
- * with the corresponding MIME type string as used in HTTP headers.
- */
-struct mime_type {
-    const char *ext; 	/**< File extension without leading dot (e.g. "html"). */
-    const char *mime;	/**< MIME type string, including optional charset (e.g. "text/html; charset=UTF-8"). */
-};
 
 /**
  * @brief Send a HTTP response over a socket file descriptor.
@@ -44,4 +32,4 @@ int send_response(int fd, int status, const char *content_type,
  */
 int send_text(int fd, int status, const char *text);
 
-#endif /* HTTP_H  */
+#endif /* HTTP_RESPONSE_H  */
