@@ -7,7 +7,7 @@
 #include "../include/server.h"
 #include "../include/error.h"
 
-int server_start(const struct server_config *config, int (*client_handler)(int)){
+int server_start(const struct server_config *config, int (*client_handler)(int fd, void* context), void *context){
     if (!config || !client_handler){
 		fprintf(stderr, "server_start: bad arguments\n");
 		return -1; 
@@ -46,12 +46,7 @@ int server_start(const struct server_config *config, int (*client_handler)(int))
             inet_ntop(AF_INET, &client_addr.sin_addr, client_ip_str, sizeof(client_ip_str));
             printf("accepted connection from %s:%d \n",client_ip_str, client_port);
 			
-		/*
-		 * char buffer[100] = {0};
-            read(client_sock, buffer, sizeof(buffer));
-            printf("%s\n", buffer);
-		*/	
-			client_handler(client_sock);
+			client_handler(client_sock, context);
             
 			LOG_ON_ERROR( close(client_sock), 0, "close client_sock");
         }

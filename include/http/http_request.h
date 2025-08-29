@@ -3,13 +3,14 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "./http_common.h"
 
 /**
  * @file http_request.h
  * @brief Data structures and helpers for representing a parsed HTTP request.
  *
  * This header defines fixed-size limits, the header and request structures,
- * and lifecycle helpers to initialize and free an http_request.
+ * and lifecycle helpers to initialize and clear an http_request.
  */
 
 
@@ -58,22 +59,10 @@
 
 
 /**
- * @brief HTTP header struct containing Name/value pair for a single HTTP header field.
- *
- * Both @ref name and @ref value are heap-allocated, null-terminated
- * strings managed by the parser. They are freed by @ref http_request_free().
- */
-struct http_header {
-    char *name;   /**< Header field name (e.g., "Content-Type"), null-terminated. */
-    char *value;  /**< Header field value (e.g., "text/plain"), null-terminated. */
-};
-
-
-/**
  * @brief HTTP request struct for representation of a parsed HTTP request.
  *
  * Fields @ref method, @ref path, @ref version, and each header name/value are
- * heap-allocated, null-terminated strings. They are freed by @ref http_request_free().
+ * heap-allocated, null-terminated strings. They are freed by @ref http_request_clear().
  *
  * The @ref headers array is also heap-allocated (size: @ref num_headers).
  * The @ref body pointer is an optional heap-allocated, null-terminated copy of
@@ -95,7 +84,7 @@ struct http_request {
 /**
  * @brief Initialize an @ref http_request struct to a safe empty state.
  *
- * Sets all pointers to NULL and counters to zero so that @ref http_request_free()
+ * Sets all pointers to NULL and counters to zero so that @ref http_request_clear()
  * can be safely called later even if parsing fails midway.
  *
  * @param req Pointer to the request object to initialize (must not be NULL).
@@ -115,6 +104,27 @@ void http_request_init(struct http_request *req);
  *
  * @param req Pointer to the http_request struct to free (must not be NULL).
  */
-void http_request_free(struct http_request *req);
+void http_request_clear(struct http_request *req);
+
+
+/**
+ * @brief Look up a header value by name (case-insensitive).
+ *
+ * Scans @p req->headers and returns the value pointer of the first header
+ * whose name matches @p header_name, using a case-insensitive comparison.
+ *
+ * @param req          Parsed request to search (must not be NULL).
+ * @param header_name  Header field-name to look up (must not be NULL).
+ *
+ * @return
+ *  - Pointer to the header value (NUL-terminated) if found.
+ *  - NULL if no matching header exists or if inputs are invalid.
+ *
+ * @note
+ *  - If multiple headers share the same name, the first occurrence is returned.
+ *  - The returned pointer is owned by @ref http_request and remains valid
+ *    until @ref http_request_clear() is called.
+ */
+const char* http_request_get_header_value(const struct http_request *req, const char *header_name);
 
 #endif /* HTTP_REQUEST_H */

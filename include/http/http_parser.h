@@ -1,7 +1,8 @@
 #ifndef HTTP_PARSER_H
 #define HTTP_PARSER_H
-#include "http_request.h"
 
+#include <stddef.h>
+#include "http_request.h"
 
 /**
  * @brief Parse the HTTP request line ("METHOD PATH VERSION") into request struct.
@@ -22,7 +23,7 @@ int http_parse_request_line(const char *buffer, size_t buffer_len, struct http_r
  *
  * Allocates and copies header names/values into req->headers.
  *
- * @param buffer 					Inputbuffer containing headers.
+ * @param buffer 					Input buffer containing headers.
  * @param buffer_len 				Length of the buffer.
  * @param headers_dropped [out] 	Number of headers dropped due to max limit.
  * @param req 						HTTP request struct to populate.
@@ -53,10 +54,10 @@ int read_body(int fd, char **buffer, size_t buffer_len, size_t headers_end,
 
 
 /**
- * @brief  Send a plain text response over a socket file descriptor.
+ * @brief Parse a complete request from @p fd into @p req.
  *
  * On success returns 0 and fills `req` (allocates fields if necessery).
- * On error returns -1. Caller must call http_request_free(req). 
+ * On error returns -1. Caller must call http_request_clear(req). 
  *
  * @param fd 			File descriptor to read from.
  * @param buffer 		Pointer to buffer pointer (gets reallocated if needed).

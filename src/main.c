@@ -8,6 +8,8 @@
 #include <libgen.h>
 #include "../include/server.h"
 #include "../include/app.h"
+#include "../include/core/http_core.h"
+#include "../include/adapters/adapter_http_app.h"
 
 
 int parse_port(const char *input, uint16_t *output) {
@@ -53,5 +55,14 @@ int main(int argc, char** argv){
         .backlog = 128
     };
 
-    return server_start(&server_cfg, app_handle_client);
+	struct app_adapter_ctx adapter_context = { 
+		.app_handler = app_handle_client
+	};
+
+	struct http_core_ctx http_core_context = {
+		.adapter_handler = adapter_http_app,
+		.adapter_context = &adapter_context
+	};
+
+    return server_start(&server_cfg, http_handle_connection, &http_core_context);
 }
