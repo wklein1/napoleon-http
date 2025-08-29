@@ -32,4 +32,4 @@ struct mime_type {
  */
 const char* get_mime_type(const char* extension);
 
-#endif
+#endif /* HTTP_MIME_H */

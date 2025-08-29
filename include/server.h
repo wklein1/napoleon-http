@@ -22,11 +22,14 @@ struct server_config {
  * the client-socket file descriptor.
  *
  * @param config     	 Pointer to server configuration structure (host, port, backlog).
- * @param client_handler Callback function for each accepted client, gets client socket file descriptor.
+ * @param client_handler Callback function for each accepted client, must not be NULL.
+ * @param context		 Opaque pointer forwarded to @p client_handler on each call (may be NULL).
  *
  * @return 0 on success, -1 on error.
+ *
+ * @note The function typically blocks until @ref server_stop() is called or an error occurs.
  */
-int server_start(const struct server_config *config, int (*client_handler)(int client_fd));
+int server_start(const struct server_config *config, int (*client_handler)(int client_fd, void *context), void *context);
 
 /**
  * @brief Stop the server.

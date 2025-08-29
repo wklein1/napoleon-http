@@ -1,6 +1,7 @@
 #include "../../include/http/http_request.h"
 #include <stdio.h>
 #include <stdlib.h> 
+#include <strings.h>
 
 void http_request_init(struct http_request *req) {
     if (!req) return;
@@ -13,7 +14,7 @@ void http_request_init(struct http_request *req) {
     req->body = NULL;
 }
 
-void http_request_free(struct http_request *req) {
+void http_request_clear(struct http_request *req) {
     if (!req) return;
 	free(req->method);
 	free(req->path);
@@ -23,5 +24,15 @@ void http_request_free(struct http_request *req) {
 		free(req->headers[i].value);
 	}
 	free(req->headers);
+	if(req->body)free(req->body);
 	http_request_init(req);
+}
+
+const char* http_request_get_header_value(const struct http_request *req, const char *header_name){
+	for(size_t i=0; i<req->num_headers; i++){
+		if(strcasecmp(req->headers[i].name, header_name) == 0){
+			return req->headers[i].value;
+		}
+	}
+	return NULL;
 }

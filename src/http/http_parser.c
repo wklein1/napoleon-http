@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../../include/http/http_parser.h"
+#include "../../include/http/http_common.h"
 #include "../../include/reader.h"
 
 static const short DEBUG_OUT = 0;
@@ -131,13 +132,13 @@ static int read_until_double_crlf(
 
 	while(1){
 
-		currently_read = read_some(fd, *buffer + *total_read, chunk_size*chunk_count - *total_read);
+		currently_read = read_some(fd, (char*)(*buffer) + *total_read, chunk_size*chunk_count - *total_read);
 		if(currently_read<0){
 			return -1;
 		}
 		*total_read += currently_read;
 
-		int idx = find_double_crlf((const char*)*buffer, chunk_size*chunk_count);
+		int idx = find_double_crlf((const char*)*buffer, *total_read);
 		if(idx == -1){
 			chunk_count++;
 

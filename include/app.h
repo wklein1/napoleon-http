@@ -1,17 +1,125 @@
 #ifndef APP_H
 #define APP_H
 
+#include <stddef.h>
+
 /**
- * @brief Business logic handler for client connections.
+ * @brief Protocol-agnostic application I/O contract.
  *
- * This function processes a single client connection. It is intended
- * to be passed as a callback to the server, which provides the client
- * socket file descriptor.
+ * A transport/protocol adapter translates inbound messages into an
+ * @ref app_request and calls @ref app_handle_client. The application fills an
+ * @ref app_response which the adapter then serializes back to the client.
  *
- * @param client_fd File descriptor of the accepted client socket.
- *
- * @return 0 on success, -1 on error.
+ * @note All pointers are treated as read-only by the framework/adapter.
+ *       The application must ensure their lifetime until the adapter has
+ *       completed sending the response.
  */
-int app_handle_client(int client_fd);
+
+
+/**
+ * @enum app_method
+ * @brief Normalized operation verb.
+ *
+ * The names mirror common REST-style verbs but are not tied to any
+ * particular protocol. The adapter is free to map transport-specific
+ * methods to these values; unknown verbs should use @ref APP_OTHER.
+ */
+enum app_method{
+    APP_GET,     /**< Read/retrieve. */
+    APP_POST,    /**< Create/submit. */
+    APP_PUT,     /**< Replace/update. */
+    APP_DELETE,  /**< Remove. */
+    APP_OTHER    /**< Any other/unknown verb. */
+};
+
+
+/**
+ * @enum app_media
+ * @brief Logical media classification for payload interpretation.
+ *
+ * The adapter may use this to choose representation details in the
+ * serialized message (e.g., metadata or content-type) or to select
+ * sensible defaults when none is provided.
+ */
+enum app_media{
+    APP_MEDIA_NONE, /**< Unspecified/none. */
+    APP_MEDIA_TEXT, /**< Human-readable text (UTF-8). */
+    APP_MEDIA_JSON, /**< Structured JSON (UTF-8). */
+    APP_MEDIA_HTML, /**< Markup/HTML (UTF-8). */
+    APP_MEDIA_BIN   /**< Arbitrary binary data. */
+};
+
+
+/**
+ * @enum app_status
+ * @brief High-level outcome classification.
+ *
+ * The adapter decides how to express these outcomes in the transport
+ * protocol (e.g., status codes or equivalents).
+ */
+enum app_status{
+    APP_OK,          /**< Successful result. */
+    APP_CREATED,     /**< Resource created. */
+    APP_NO_CONTENT,  /**< Successful, no payload. */
+    APP_BAD_REQUEST, /**< Client input invalid. */
+    APP_FORBIDDEN,   /**< Action not permitted. */
+    APP_NOT_FOUND,   /**< Target not found. */
+    APP_UNSUPPORTED, /**< Unsupported media/operation. */
+    APP_ERROR        /**< Generic server/application error. */
+};
+
+
+/**
+ * @struct app_request
+ * @brief Request forwarded to the application.
+ * 
+ * The adapter populates these read-only fields.
+ * Only the semantics documented here are guaranteed; 
+ * format/normalization details are not.”
+ */
+struct app_request{
+    enum app_method method;      /**< Operation verb. */
+    const char *path;            /**< Opaque resource identifier as provided by the adapter. */
+    const void *body;            /**< Request payload (read-only; may be NULL). */
+    size_t body_len;             /**< Payload length in bytes (may be 0). */
+    enum app_media content_type; /**< Best-effort media classification of @ref body. */
+    const char *accept;          /**< Optional client preference string (may be NULL). */
+};
+
+
+/**
+ * @struct app_response
+ * @brief Application response to be serialized by the adapter.
+ *
+ * @note If @ref payload points to dynamically allocated memory, ensure its
+ *       lifetime extends until the adapter has finished writing it out.
+ *       For @ref APP_NO_CONTENT, set @ref payload_len to 0 and leave
+ *       @ref payload as NULL.
+ */
+struct app_response{
+    enum app_status status; /**< Outcome classification. */
+    enum app_media  media;  /**< Media classification of @ref payload. */
+    const void *payload;    /**< Response payload (read-only; may be NULL). */
+    size_t payload_len;     /**< Payload length in bytes (0 if none). */
+};
+
+
+/**
+ * @brief Handle a single normalized request and produce a response.
+ *
+ * The function fills @p app_res_out:
+ *  - Sets @ref app_response.status to indicate the outcome.
+ *  - If a payload is returned, sets @ref app_response.media and
+ *    @ref app_response.payload_len accordingly.
+ *  - For @ref APP_NO_CONTENT, leaves @ref app_response.payload NULL
+ *    and length 0.
+ *
+ * @param app_req      [in]  Request data (must not be NULL).
+ * @param app_res_out  [out] Response to be filled by the application (must not be NULL).
+ * @return 0 on success (response in @p app_res_out is valid and can be sent);
+ *         <0 on technical failure (e.g., allocation/logic error). The adapter/core
+ *         may emit a generic error response in that case and ignore @p app_res_out.
+ */
+int app_handle_client(const struct app_request *app_req, struct app_response *app_res_out);
 
 #endif /* APP_H */
