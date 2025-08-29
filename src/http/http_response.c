@@ -118,7 +118,7 @@ int http_send_response(int fd, const struct http_response *res){
         if (h_written + (size_t)to_write + strlen(end_of_headers) > sizeof(headers)){
             break;
         }
-
+		cap = headers_limit - h_written;
 		int currently_written = snprintf(headers+h_written, cap, "%s: %s\r\n",
 		res->extra_headers[i].name, res->extra_headers[i].value);
 
