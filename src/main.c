@@ -12,7 +12,7 @@
 #include "../include/adapters/adapter_http_app.h"
 
 
-int parse_port(const char *input, uint16_t *output) {
+static int parse_port(const char *input, uint16_t *output) {
     if (!input) return -1;
 
     errno = 0;
@@ -55,6 +55,7 @@ int main(int argc, char** argv){
         .backlog = 128
     };
 
+
 	struct app_adapter_ctx adapter_context = { 
 		.app_handler = app_handle_client
 	};
@@ -63,6 +64,8 @@ int main(int argc, char** argv){
 		.adapter_handler = adapter_http_app,
 		.adapter_context = &adapter_context
 	};
+
+	if(app_init()<0) exit(-1);
 
     return server_start(&server_cfg, http_handle_connection, &http_core_context);
 }

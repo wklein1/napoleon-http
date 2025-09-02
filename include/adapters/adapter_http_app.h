@@ -24,11 +24,12 @@ struct app_adapter_ctx {
  *
  * Builds an @ref app_request from @ref http_request, invokes the app handler,
  * then converts the @ref app_response to an @ref http_response. Ownership of any
- * heap-allocated payload is respected via @ref app_response::owns_payload.
+ * heap-allocated payload is respected via @ref app_response->payload_owned.
  *
- * @param req_http  Parsed HTTP request (not owned by adapter).
- * @param out_http  Response to be sent by the core (filled here).
- * @param ud        Pointer to @ref app_adapter_ctx.
+ * @param req  				Parsed HTTP request (not owned by adapter).
+ * @param res_out  			Response to be sent by the core (filled here).
+ * @param adapter_context   Pointer to @ref app_adapter_ctx.
+ *
  * @return 0 on success, non-zero on application-level failure.
  */
 int adapter_http_app(const struct http_request *req,

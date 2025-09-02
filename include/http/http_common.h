@@ -1,27 +1,28 @@
 #ifndef HTTP_COMMON_H
 #define HTTP_COMMON_H
 
+#include <stdbool.h>
+
 /**
- * @file http_common.h
- * @brief Representation of a single HTTP header name/value pair.
+ * @struct http_header
+ * @brief One header line (name: value).
  *
- * This struct is shared by request and response handling code. It does not
- * specify ownership semantics by itself: depending on context, `name` and
- * `value` may be:
- *  - heap-allocated (e.g., by the HTTP parser),
- *  - static string literals,
- *  - or provided by the application.
+ * Ownership:
+ * - If @ref name_owned is true, the framework/parser will free(@ref name).
+ * - If @ref value_owned is true, the framework/parser will free(@ref value).
+ * - If false, the pointers must refer to static/foreign storage and will not be freed.
  *
- * Ownership rules are documented in the respective modules:
- *  - For requests: the parser allocates and frees them via
- *    @ref http_request_free().
- *  - For responses: the application/core decide whether strings are
- *    static or managed elsewhere.
+ * Note: 
+ *   This struct is used by both request and response code paths.
+ *   Strings are NUL-terminated. Ownership is indicated per field via *_owned flags.
+ *   If a field’s *_owned flag is true, the respective pointer must be heap-allocated
+ *   and will be freed by the corresponding clear() routine.
  */
-#include <stddef.h>
 struct http_header {
-    char *name;   /**< Header field name (e.g., "Content-Type"), null-terminated. */
-    char *value;  /**< Header field value (e.g., "text/plain"), null-terminated. */
+    char *name;        /**< Header field name (e.g., "Content-Type"), null-terminated. */
+    char *value;       /**< Header field value (e.g., "text/plain"), null-terminated. */
+    bool name_owned;   /**< true if @ref name is heap-owned and should be freed.  */
+	bool value_owned;  /**< true if @ref value is heap-owned and should be freed. */
 };
 
 

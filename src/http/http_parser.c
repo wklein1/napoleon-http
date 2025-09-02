@@ -162,18 +162,23 @@ static int read_until_double_crlf(
 int read_body(int fd, char **buffer, size_t buffer_len, size_t headers_end, 
 			  size_t content_len, size_t max_body, size_t already_read, struct http_request *req){
 
-	if(!buffer){
+	if(!buffer || !*buffer || !req){
 		return -1;
 	}
 	if(content_len == 0){
 		return 0;
 	} 
-
+   if (already_read < headers_end + 4) return -1;
 	size_t already_read_body = already_read - headers_end-4;
 
-	size_t to_read = content_len <= max_body 
-		? content_len - already_read_body 
-		: max_body - already_read_body;
+	size_t limit = content_len;
+	if (limit > max_body) {
+    	limit = max_body;
+	}
+
+	size_t to_read = (already_read_body <= limit)
+        		   ? (limit - already_read_body) 
+				   : 0;
 
 	if(DEBUG_OUT){
 		printf("~~~~~~~~~~~~~~~~~~~~~\n");
@@ -190,6 +195,7 @@ int read_body(int fd, char **buffer, size_t buffer_len, size_t headers_end,
 
 	if(already_read + to_read > buffer_len){
 		char *tmp = realloc(*buffer, (already_read+to_read)*sizeof(char));
+		if(!tmp) return -1;
 		*buffer = tmp;
 	}
 
@@ -205,8 +211,8 @@ int read_body(int fd, char **buffer, size_t buffer_len, size_t headers_end,
 	
 	memcpy(tmp,*buffer+headers_end+4,actual_body_len);
 	tmp[actual_body_len]='\0';
-
 	req->body=tmp;
+	req->content_length=actual_body_len;
 
 	if(actual_body_len < content_len){
 		fprintf(stderr,"read %zu characters into body, but content_length is %zu\n",
@@ -286,8 +292,10 @@ int http_parse_request_headers(const char *buffer, size_t buffer_len, int *heade
 
 			if(i == 0){
 				header.name = tmp;
+				header.name_owned = true;
 			}else{
 				header.value = tmp;
+				header.value_owned = true;
 			}
 			idx+=token_end+2;
 		}
@@ -300,7 +308,9 @@ int http_parse_request_headers(const char *buffer, size_t buffer_len, int *heade
 
 	for(int i=0;i<header_count;i++){
 		headers[i].name = headers_tmp[i].name;
+		headers[i].name_owned = headers_tmp[i].name_owned;
 		headers[i].value = headers_tmp[i].value;
+		headers[i].value_owned = headers_tmp[i].value_owned;
 	}
 	req->headers=headers;
 	req->num_headers = header_count;
@@ -323,13 +333,13 @@ int http_parse_request(int fd, void **buffer, size_t buffer_len, struct http_req
 	
 	printf("\n############ Parse request ############\n");
 
-	int headers_end = read_until_double_crlf(fd, buffer, buffer_len, headers_max, &total_read, &new_buff_len);
+	int headers_end = read_until_double_crlf(fd, buffer, buffer_len, headers_max, &new_buff_len, &total_read);
 	if(headers_end == -1){
 		fprintf(stderr, "error reading request headers\n");
 		return -1;
 	}
 
-	int req_line_end = http_parse_request_line(*buffer, new_buff_len, req);
+	int req_line_end = http_parse_request_line(*buffer, total_read, req);
 	if(req_line_end < 0){	
 		fprintf(stderr, "error parsing request line\n");
 		return -1;
@@ -340,7 +350,7 @@ int http_parse_request(int fd, void **buffer, size_t buffer_len, struct http_req
 	printf("Path: %s\n", req->path);
 	printf("Version: %s\n", req->version);
 
-	int headers_parsed = http_parse_request_headers(*buffer+req_line_end+1, new_buff_len-req_line_end-1, 
+	int headers_parsed = http_parse_request_headers(*buffer+req_line_end, total_read-req_line_end, 
 												  &headers_dropped, req);
 	if(headers_parsed<0){
 		fprintf(stderr, "error parsing request headers\n");
@@ -361,6 +371,7 @@ int http_parse_request(int fd, void **buffer, size_t buffer_len, struct http_req
 		printf("########## Parse request END ##########\n\n");
 		return 0;
 	}
+
 
 	int read_from_body = read_body(fd,(char**)buffer, new_buff_len, headers_end, content_len, body_max, total_read, req);
 	if(read_from_body <0){

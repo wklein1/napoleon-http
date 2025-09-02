@@ -80,34 +80,61 @@ static const char* get_reason_phrase(enum http_status status){
 }
 
 void http_response_clear(struct http_response *res){
+	if (res->extra_headers) {
+    	for (size_t i = 0; i < res->extra_headers_count; i++) {
+        	if (res->extra_headers[i].name_owned){
+				free(res->extra_headers[i].name);
+				res->extra_headers[i].name = NULL;
+				res->extra_headers[i].name_owned = false;
+			}
+        	if (res->extra_headers[i].value_owned){
+				free(res->extra_headers[i].value);
+				res->extra_headers[i].value = NULL;
+				res->extra_headers[i].value_owned = false;
+			}
+    	}
+    	if(res->extra_headers_owned) free(res->extra_headers);
+	}
+	if(res->body && res->body_owned) free((void*)res->body);
 	res->status=HTTP_OK;
 	res->content_length=0;
-	res->extra_headers_count=0;
 	res->content_type=NULL;
-	if(res->extra_headers) free(res->extra_headers);
-	if(res->body) free((void*)res->body);
+	res->extra_headers = NULL;
+	res->extra_headers_count=0;
+	res->extra_headers_owned = false;
+	res->body = NULL;
+	res->body_owned = false;
 }
 
 int http_send_response(int fd, const struct http_response *res){  
 
 	if (!res) { errno = EINVAL; return -1; }
-    const char *content_type = res->content_type ? res->content_type : "text/plain; charset=utf-8";
 	
 	char headers[2048];
 
 	char end_of_headers[] = "Connection: close\r\n\r\n"; 
 
-	size_t headers_limit = sizeof(headers)-strlen(end_of_headers);
+	size_t headers_limit = sizeof(headers)-(sizeof(end_of_headers) - 1);
     
 	size_t h_written = 0;
-	size_t cap = headers_limit - h_written;
-	int currently_written = snprintf(headers+h_written, cap,
+	
+	int currently_written = 0;
+	currently_written = snprintf(headers+h_written, headers_limit - h_written,
         "HTTP/1.1 %d %s\r\n"
-        "Content-Type: %s\r\n"
-        "Content-Length: %zu\r\n",
-        res->status, get_reason_phrase(res->status), content_type, res->content_length);
+        "Content-Length: %zu\r\n"
+		"X-Content-Type-Options: nosniff\r\n",
+        res->status, get_reason_phrase(res->status), res->content_length);
 
-	if (currently_written < 0 || (size_t)currently_written >= cap) return -1;
+	if (currently_written < 0 || (size_t)currently_written >= headers_limit - h_written) return -1;
+	h_written += (size_t)currently_written;
+	currently_written = 0;
+
+	if(res->content_type){
+	currently_written = snprintf(headers+h_written, headers_limit - h_written,
+        "Content-Type: %s\r\n", res->content_type);
+	}
+
+	if (currently_written < 0 || (size_t)currently_written >= headers_limit - h_written) return -1;
 	h_written += (size_t)currently_written;
 
 	for(size_t i=0; i<res->extra_headers_count; i++){
@@ -116,15 +143,15 @@ int http_send_response(int fd, const struct http_response *res){
         if (to_write < 0) return -1;
 
         if (h_written + (size_t)to_write + strlen(end_of_headers) > sizeof(headers)){
-            break;
+            return -1;
         }
-		cap = headers_limit - h_written;
-		int currently_written = snprintf(headers+h_written, cap, "%s: %s\r\n",
+		int currently_written = snprintf(headers+h_written, headers_limit - h_written, "%s: %s\r\n",
 		res->extra_headers[i].name, res->extra_headers[i].value);
 
-		if(currently_written < 0 || (size_t)currently_written >= cap) return -1;
+		if(currently_written < 0 || (size_t)currently_written >= headers_limit - h_written) return -1;
 		h_written += (size_t)currently_written;
 	}
+
 	currently_written = 0;
 	currently_written = snprintf(headers + h_written, sizeof(headers) - h_written, "%s", end_of_headers);
     if (currently_written < 0) return -1;
