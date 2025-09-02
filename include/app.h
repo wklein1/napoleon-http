@@ -2,9 +2,11 @@
 #define APP_H
 
 #include <stddef.h>
+#include <stdbool.h>
+
 
 /**
- * @brief Protocol-agnostic application I/O contract.
+ * @brief Protocol-agnostic application.
  *
  * A transport/protocol adapter translates inbound messages into an
  * @ref app_request and calls @ref app_handle_client. The application fills an
@@ -73,17 +75,15 @@ enum app_status{
  * @struct app_request
  * @brief Request forwarded to the application.
  * 
- * The adapter populates these read-only fields.
- * Only the semantics documented here are guaranteed; 
- * format/normalization details are not.”
+ * Populated by the adapter.
  */
 struct app_request{
-    enum app_method method;      /**< Operation verb. */
-    const char *path;            /**< Opaque resource identifier as provided by the adapter. */
-    const void *body;            /**< Request payload (read-only; may be NULL). */
-    size_t body_len;             /**< Payload length in bytes (may be 0). */
-    enum app_media content_type; /**< Best-effort media classification of @ref body. */
-    const char *accept;          /**< Optional client preference string (may be NULL). */
+    enum app_method 	method;      	/**< App method classification */
+    const char 			*path;          /**< Opaque resource identifier as provided by the adapter. */
+    const void 			*payload;       /**< Request payload (read-only; may be NULL). */
+    size_t 				payload_len;    /**< Payload length in bytes (may be 0). */
+    enum app_media 		media_type;     /**< Media classification of @ref payload. */
+    const char 			*accept;        /**< Optional client preference string (may be NULL). */
 };
 
 
@@ -91,17 +91,32 @@ struct app_request{
  * @struct app_response
  * @brief Application response to be serialized by the adapter.
  *
- * @note If @ref payload points to dynamically allocated memory, ensure its
- *       lifetime extends until the adapter has finished writing it out.
- *       For @ref APP_NO_CONTENT, set @ref payload_len to 0 and leave
- *       @ref payload as NULL.
+ * Ownership & lifetime:
+ * - If payload points to dynamically allocated memory and payload_owned == true,
+ *   the adapter/framework will free it after sending.
+ * - If payload points to static storage or memory owned elsewhere, set
+ *   payload_owned == false (it will not be freed by the framework).
+ * - For APP_NO_CONTENT, set payload_len to 0 and leave payload as NULL.
  */
 struct app_response{
-    enum app_status status; /**< Outcome classification. */
-    enum app_media  media;  /**< Media classification of @ref payload. */
-    const void *payload;    /**< Response payload (read-only; may be NULL). */
-    size_t payload_len;     /**< Payload length in bytes (0 if none). */
+    enum app_status 	status; 		/**< Outcome status code. */
+    enum app_media  	media_type;  	/**< Media classification of @ref payload. */
+    const void 			*payload;    	/**< Response payload (read-only; may be NULL). */
+    size_t 				payload_len;    /**< Payload length in bytes (0 if none). */
+	bool 				payload_owned;  /**< true if framework should free(payload) after send. */
 };
+
+/**
+ * @brief Initialize application state (e.g., register routes).
+ *
+ * Call exactly once during program startup (e.g., from `main()`), before any
+ * worker threads/tasks handle requests. The function should be **idempotent**, 
+ * but is not inherently thread-safe unless explicitly implemented with synchronization 
+ * (e.g., `pthread_once`).
+ *
+ * @return 0 on success, -1 on failure.
+ */
+int app_init();
 
 
 /**

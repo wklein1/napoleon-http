@@ -10,6 +10,7 @@ int http_handle_connection(int client_fd, void *context){
 		return -1;
 	}
 	struct http_request *req = calloc(1,sizeof(struct http_request));
+	int ret = -1;
 	if(!req) goto cleanup_buff;
 	http_request_init(req);
 
@@ -17,7 +18,7 @@ int http_handle_connection(int client_fd, void *context){
 
 	struct http_core_ctx *http_core_context = (struct http_core_ctx*)context;
 	struct http_response res = {0};
-    int ret = http_core_context->adapter_handler(req, &res, http_core_context->adapter_context);
+    ret = http_core_context->adapter_handler(req, &res, http_core_context->adapter_context);
 	
 	if(ret >= 0){
 		http_send_response(client_fd, &res);

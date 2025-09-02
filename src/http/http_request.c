@@ -19,11 +19,13 @@ void http_request_clear(struct http_request *req) {
 	free(req->method);
 	free(req->path);
 	free(req->version);
-	for(size_t i=0;i<req->num_headers;i++){
-		free(req->headers[i].name);
-		free(req->headers[i].value);
-	}
-	free(req->headers);
+	if(req->headers){
+		for(size_t i=0;i<req->num_headers;i++){
+			if (req->headers[i].name_owned == true) free(req->headers[i].name);
+			if (req->headers[i].value_owned == true) free(req->headers[i].value);
+		}
+		free(req->headers);
+    }
 	if(req->body)free(req->body);
 	http_request_init(req);
 }

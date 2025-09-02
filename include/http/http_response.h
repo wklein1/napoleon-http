@@ -1,6 +1,9 @@
 #ifndef HTTP_RESPONSE_H
 #define HTTP_RESPONSE_H
+
 #include "http_common.h"
+#include <stdbool.h>
+#include <stddef.h>
 
 /**
  * @brief Response description and helpers for writing a serialized response.
@@ -35,33 +38,40 @@ enum http_status{
  *
  * @note Ownership/lifetime:
  *  - @ref content_type must point to a NUL-terminated string valid until
- *    serialization completes; it may be NULL to select a default.
+ *    serialization completes; it may be NULL to to use the implementation’s default
+ *    policy (e.g., omit or choose a safe default).
  *  - @ref extra_headers may be NULL or point to an array of @ref http_header
- *    of length @ref extra_headers_count; each name/value must be NUL-terminated.
+ *    of length @ref extra_headers_count; each name/value must be NUL-terminated
+ *    and must not contain CR/LF.
  *  - @ref body may be NULL or point to a buffer of length @ref content_length.
- *  - @ref http_response_clear() will free @ref extra_headers and @ref body
+ *  - @ref http_response_clear() will free @ref extra_headers and @ref body when
+ *    the corresponding owned flags are set.
  *    The struct itself is never freed by @ref http_response_clear().
  */
 struct http_response {
-    enum http_status status;      /**< Status code (e.g., 200, 404). */
-    const char *content_type;     /**< MIME type string, or NULL for a default. */
-    struct http_header *extra_headers; /**< Optional array of extra headers (may be NULL). */
-    size_t extra_headers_count;   /**< Number of entries in @ref extra_headers. */
-    const void *body;             /**< Optional response body buffer (may be NULL). */
-    size_t content_length;        /**< Length of @ref body in bytes (0 if none). */
+    enum http_status status;			/**< Status code (e.g., 200, 404). */
+    const char *content_type;			/**< MIME type string, or NULL for a default. */
+    struct http_header *extra_headers;  /**< Optional array of extra headers (may be NULL). */
+    size_t extra_headers_count;			/**< Number of entries in @ref extra_headers. */
+	bool extra_headers_owned;			/**< If true, clear() frees the extra_headers array pointer. */
+    const void *body;					/**< Optional response body buffer (may be NULL). */
+    size_t content_length;				/**< Length of @ref body in bytes (0 if none). */
+	bool body_owned;					/**< If true, clear() frees body. */
 };
 
 /**
  * @brief Send a HTTP response over a socket file descriptor.
- *
- * Writes an HTTP response including status line, headers and body.
+ * 
+ * Writes a status line, Content-Length, optional Content-Type (if a body is
+ * sent and a type is known), any extra headers, "Connection: close", CRLF,
+ * and then the body if Content_length > 0.
  *
  * @param fd                  Socket file descriptor.
- * @param http_response       Http response struct to serialize (must not be NULL).
+ * @param res                 Http response struct to serialize (must not be NULL).
  *
  * @return 0 on success, -1 on error.
  */
-int http_send_response(int fd, const struct http_response*);
+int http_send_response(int fd, const struct http_response* res);
 
 /**
  * @brief Send a plain text response over a socket file descriptor.
@@ -71,7 +81,7 @@ int http_send_response(int fd, const struct http_response*);
  *
  * @param fd     Socket file descriptor.
  * @param status HTTP status code (e.g. 200, 404).
- * @param texr   Text string to send as body.
+ * @param text   Text string to send as body.
  *
  * @return 0 on success, -1 on error.
  */
@@ -80,16 +90,13 @@ int http_send_text(int fd, enum http_status status, const char *text);
 
 /**
  * @brief Clear a response struct and free owned dynamic members.
- *
- * Frees @ref http_response::extra_headers (array) and @ref http_response::body, 
- * then resets all fields to zero/NULL.
- * The @ref http_response object itself is not freed.
+ * Frees the extra_headers array and each extra header's name/value 
+ * according to its *_owned flags and if extra_headers_owned is true. 
+ * If body_owned is true, frees body. 
+ * Resets all fields (including *_owned) to NULL/zero.
+ * The http_response object itself is not freed.
  *
  * @param res Pointer to the response to clear (must not be NULL).
- *
- * @warning Only call this if @ref extra_headers and/or @ref body point to
- *          memory owned by the response (heap-allocated). Do **not** call it
- *          when these pointers refer to string literals or foreign storage.
  */
 void http_response_clear(struct http_response *res);
 

@@ -1,6 +1,6 @@
 BIN_NAME=napoleon_httpd
-INCLUDE_DIRS=include/ include/http/ include/app/ include/adapters/ include/core/
-SRC_DIRS=src src/http src/adapters src/core/ app 
+INCLUDE_DIRS=include/ include/http/ include/app/ include/adapters/ include/core/ include/router/
+SRC_DIRS=src src/http src/adapters src/core/ src/router/ app 
 BUILD_DIR=build
 
 BUILD_MODE=debug

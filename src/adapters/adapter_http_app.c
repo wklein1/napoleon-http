@@ -87,7 +87,7 @@ static int app_status_to_http_status(enum app_status status){
         case APP_FORBIDDEN:   return 403;
         case APP_NOT_FOUND:   return 404;
         case APP_UNSUPPORTED: return 415;
-        case APP_ERROR:		  return 503;
+        case APP_ERROR:		  return 500;
         default:			  return 500;
     }
 }
@@ -99,9 +99,9 @@ int adapter_http_app(const struct http_request *http_req, struct http_response *
     const struct app_request app_req = {
         .method		  = map_method(http_req->method),
         .path		  = http_req->path,
-        .body		  = http_req->body,
-        .body_len	  = http_req->content_length,
-        .content_type = media_from_content_type(http_request_get_header_value(http_req, "Content-Type")),
+        .payload	  = http_req->body,
+        .payload_len  = http_req->content_length,
+        .media_type   = media_from_content_type(http_request_get_header_value(http_req, "Content-Type")),
         .accept		  = http_request_get_header_value(http_req, "Accept")
     };
 
@@ -109,9 +109,10 @@ int adapter_http_app(const struct http_request *http_req, struct http_response *
     int app_ret = ((struct app_adapter_ctx*)adapter_context)->app_handler(&app_req, &app_res);
 
 	http_res_out->status	   = app_status_to_http_status(app_res.status);
-    http_res_out->content_type = media_to_http_content_type(app_res.media);
+    http_res_out->content_type = media_to_http_content_type(app_res.media_type);
     http_res_out->body = app_res.payload;
     http_res_out->content_length  = app_res.payload_len;
+	http_res_out->body_owned = app_res.payload_owned;
 
     return app_ret;
 }
