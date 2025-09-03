@@ -158,9 +158,9 @@ struct fs {
  *
  * @return FS_OK on success; FS_INVALID if any required pointer is missing.
  */
-
-
 int fs_init(struct fs *vfs, const struct fs_ops *ops, const char *root, void *ctx);
+
+
 /**
  * @brief Fetch metadata for a path.
  * @param vfs      Filesystem handle.
