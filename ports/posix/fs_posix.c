@@ -13,6 +13,24 @@ struct posix_file {
     int fd;
 };
 
+/**
+ * @brief Build an absolute filesystem path under @p vfs->root and forbid ".." traversal.
+ *
+ * Strips a leading '/' from @p path, rejects any path that contains a "/.."
+ * component or a ".." component at the beginning, and then joins
+ * @p vfs->root with the (now relative) @p path. The resulting string is
+ * heap-allocated and returned via @p real_path_out.
+ *
+ * Ownership: the caller owns *@p real_path_out and must free() it.
+ *
+ * @param vfs            Filesystem instance (must have a valid root).
+ * @param path           Input path (may start with '/', not NULL).
+ * @param real_path_out  [out] On success, set to a newly-allocated full path.
+ *
+ * @return FS_OK on success;
+ *         FS_INVALID on bad arguments or traversal attempt;
+ *         FS_ERROR on allocation/formatting failure.
+ */
 static int resolve_under_root(struct fs *vfs, const char *path, char **real_path_out){
 	if(!vfs || !path || !real_path_out){
 		return FS_INVALID;
@@ -47,6 +65,20 @@ static int resolve_under_root(struct fs *vfs, const char *path, char **real_path
 	return FS_OK;
 }
 
+
+/**
+ * @brief Read up to @p cap bytes from an open file descriptor.
+ *
+ * Thin wrapper around read(2) using the read_some() helper to handle EINTR.
+ * A @p cap of 0 is treated as a successful no-op and returns 0.
+ *
+ * @param file    File handle returned by posix_open (non-NULL).
+ * @param buffer  Destination buffer (non-NULL).
+ * @param cap     Maximum number of bytes to read (0 allowed).
+ *
+ * @return Number of bytes read (>=0) on success;
+ *         -1 on error (invalid args, closed fd, or read failure).
+ */
 static ssize_t posix_read(struct fs_file *file, void *buffer, size_t cap) {
     if (!file || !buffer) return -1;
     struct posix_file *pf = (struct posix_file*)file;
@@ -55,6 +87,22 @@ static ssize_t posix_read(struct fs_file *file, void *buffer, size_t cap) {
     return read_some(pf->fd, buffer, cap);
 }
 
+
+
+/**
+ * @brief Reposition file offset to an absolute @p offset (SEEK_SET).
+ *
+ * Converts @p offset to off_t and verifies it fits on this platform.
+ * Retries lseek(2) on EINTR.
+ *
+ * @param file    File handle (non-NULL).
+ * @param offset  New absolute offset from the beginning of the file.
+ *
+ * @return FS_OK on success;
+ *         FS_NOT_SUPPORTED if @p offset does not fit into off_t;
+ *         FS_ERROR on lseek() failure;
+ *         FS_INVALID on bad arguments.
+ */
 static int posix_seek(struct fs_file *file, uint64_t offset){
 	if(!file) return FS_INVALID;
 	
@@ -74,6 +122,18 @@ static int posix_seek(struct fs_file *file, uint64_t offset){
     }
 }
 
+
+/**
+ * @brief Close an open file and free the posix file struct.
+ *
+ * Calls close(2) on the underlying fd, then frees the @c struct posix_file.
+ * After return, @p file must not be used again.
+ *
+ * @param file  File handle to close (non-NULL).
+ *
+ * @return The return value of close(2) (0 on success, -1 on error),
+ *         or FS_INVALID if @p file is NULL.
+ */
 static int posix_close(struct fs_file *file) {
     if (!file) return FS_INVALID;
     struct posix_file *pf = (struct posix_file*)file;
@@ -83,12 +143,35 @@ static int posix_close(struct fs_file *file) {
     return ret;
 }
 
+
+/**
+ * @brief Table of file operations used by the POSIX implementation fs_file handles.
+ *
+ * Installed into @ref posix_file::base.ops and consumed by the generic
+ * filesystem wrappers (fs_read/fs_seek/fs_close).
+ */
 static const struct fs_file_ops posix_file_ops = {
     .read  = posix_read,
     .seek  = posix_seek,
     .close = posix_close,
 };
 
+
+/**
+ * @brief Query file metadata with lstat(2) under the configured root.
+ *
+ * Resolves @p path under @p vfs->root, then calls lstat() and maps the
+ * result into @ref fs_stat (size and node type).
+ *
+ * @param vfs       Filesystem instance (non-NULL).
+ * @param path      Path relative to root (leading '/' is allowed).
+ * @param stat_out  [out] Destination for metadata (non-NULL).
+ *
+ * @return FS_OK on success;
+ *         FS_NOT_FOUND if the path does not exist (ENOENT/ENOTDIR);
+ *         FS_ERROR on other lstat() errors;
+ *         FS_INVALID on bad arguments or path traversal rejection.
+ */
 static int posix_stat(struct fs *vfs, const char *path, struct fs_stat *stat_out){
 	if(!vfs || !path || !stat_out) return FS_INVALID;
 
@@ -114,6 +197,28 @@ static int posix_stat(struct fs *vfs, const char *path, struct fs_stat *stat_out
 	return FS_OK;
 }
 
+
+/**
+ * @brief Open a regular file for reading under the configured root.
+ *
+ * Resolves @p path under @p vfs->root, opens it read-only (O_RDONLY | O_CLOEXEC),
+ * retries on EINTR, and allocates a @c struct posix_file wrapper. Directories
+ * should be rejected by the caller if needed (or via fstat after open).
+ *
+ * On success, *@p file_out is set to the embedded @ref fs_file base pointer.
+ *
+ * Ownership: the caller is responsible for calling fs_close() on the returned
+ * file to release both the fd and the wrapper.
+ *
+ * @param vfs       Filesystem instance (non-NULL).
+ * @param path      Path relative to root (leading '/' is allowed).
+ * @param file_out  [out] Receives the opened file handle (non-NULL).
+ *
+ * @return FS_OK on success;
+ *         FS_NOT_FOUND if the path does not exist;
+ *         FS_ERROR on open/alloc failures;
+ *         FS_INVALID on bad arguments or path traversal rejection.
+ */
 static int posix_open(struct fs *vfs, const char *path, struct fs_file **file_out){
 	if (!vfs || !path || !file_out) return FS_INVALID;
 
@@ -129,7 +234,9 @@ static int posix_open(struct fs *vfs, const char *path, struct fs_file **file_ou
 			free(real_path);
     		if(errno == ENOENT) return FS_NOT_FOUND;
     		return FS_ERROR;
-  		}
+  		}else{
+			break;
+		}
 	}
 
 	struct posix_file *pf = calloc(1,sizeof(struct posix_file));
@@ -147,6 +254,22 @@ static int posix_open(struct fs *vfs, const char *path, struct fs_file **file_ou
 	return FS_OK;
 }
 
+
+/**
+ * @brief POSIX filesystem operations table for the filesystem abstraction.
+ *
+ * Implements the @ref fs_ops interface using POSIX syscalls.
+ * Currently provides:
+ *  - `stat` via `lstat(2)` (path resolved under the configured root)
+ *  - `open` via `open(2)` with `O_RDONLY | O_CLOEXEC`
+ *
+ * Path resolution is constrained to the configured root (see
+ * resolve_under_root) to mitigate directory traversal.
+ *
+ * @note This object has internal linkage (`static`) and immutable contents.
+ *       Obtain a pointer with get_fs_ops(). The pointer is valid for the
+ *       entire program lifetime and may be shared across threads.
+ */
 static const struct fs_ops posix_fs_ops = {
     .stat = posix_stat,
     .open = posix_open,
