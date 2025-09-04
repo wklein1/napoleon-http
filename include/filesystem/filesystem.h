@@ -81,13 +81,13 @@ struct fs_file_ops {
      * @return @ref FS_OK on success, @ref FS_NOT_SUPPORTED if NULL,
      *         or a negative error code.
      */
-    int     (*seek)(struct fs_file *file, uint64_t offset);
+    int (*seek)(struct fs_file *file, uint64_t offset);
 
     /**
      * @brief Close the file and release resources.
      * @return @ref FS_OK on success or a negative error code.
      */
-    int     (*close)(struct fs_file *file);
+    int (*close)(struct fs_file *file);
 };
 
 
@@ -117,7 +117,7 @@ struct fs_ops {
      * @param stat_out Output metadata (must not be NULL).
      * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
      */
-    int     (*stat)(struct fs *vfs, const char *path, struct fs_stat *stat_out);
+    int (*stat)(struct fs *vfs, const char *path, struct fs_stat *stat_out);
 
     /**
      * @brief Open @p path for reading.
@@ -126,7 +126,7 @@ struct fs_ops {
      * @param file_out Receives an opened file handle on success (must not be NULL).
      * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
      */
-    int     (*open)(struct fs *vfs, const char *path, struct fs_file **file_out);
+    int (*open)(struct fs *vfs, const char *path, struct fs_file **file_out);
 };
 
 
@@ -168,7 +168,7 @@ int fs_init(struct fs *vfs, const struct fs_ops *ops, const char *root, void *ct
  * @param stat_out Output metadata (must not be NULL).
  * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
  */
-int     fs_stat (struct fs *vfs, const char *path, struct fs_stat *stat_out);
+int fs_stat (struct fs *vfs, const char *path, struct fs_stat *stat_out);
 
 
 /**
@@ -178,7 +178,7 @@ int     fs_stat (struct fs *vfs, const char *path, struct fs_stat *stat_out);
  * @param file_out Receives the opened file on success (must not be NULL).
  * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
  */
-int     fs_open (struct fs *vfs, const char *path, struct fs_file **file_out);
+int fs_open (struct fs *vfs, const char *path, struct fs_file **file_out);
 
 
 /**
@@ -196,13 +196,13 @@ ssize_t fs_read (struct fs_file *file, void *buffer, size_t cap);
  * @return @ref FS_OK on success, @ref FS_NOT_SUPPORTED if not available,
  *         or a negative error code.
  */
-int     fs_seek (struct fs_file *file, uint64_t offset);
+int fs_seek (struct fs_file *file, uint64_t offset);
 
 
 /**
  * @brief Close an open file handle.
  * @return @ref FS_OK on success or a negative error code.
  */
-int     fs_close(struct fs_file *file);
+int fs_close(struct fs_file *file);
 
 #endif /* FILESYSTEM_H */
