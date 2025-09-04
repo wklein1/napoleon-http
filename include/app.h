@@ -45,9 +45,11 @@ enum app_method{
  */
 enum app_media{
     APP_MEDIA_NONE, /**< Unspecified/none. */
+    APP_MEDIA_HTML, /**< Markup/HTML (UTF-8). */
+	APP_MEDIA_JS,   /**< JavaScript source code. */
+	APP_MEDIA_CSS,  /**< Cascading Style Sheets. */
     APP_MEDIA_TEXT, /**< Human-readable text (UTF-8). */
     APP_MEDIA_JSON, /**< Structured JSON (UTF-8). */
-    APP_MEDIA_HTML, /**< Markup/HTML (UTF-8). */
     APP_MEDIA_BIN   /**< Arbitrary binary data. */
 };
 
@@ -60,14 +62,15 @@ enum app_media{
  * protocol (e.g., status codes or equivalents).
  */
 enum app_status{
-    APP_OK,          /**< Successful result. */
-    APP_CREATED,     /**< Resource created. */
-    APP_NO_CONTENT,  /**< Successful, no payload. */
-    APP_BAD_REQUEST, /**< Client input invalid. */
-    APP_FORBIDDEN,   /**< Action not permitted. */
-    APP_NOT_FOUND,   /**< Target not found. */
-    APP_UNSUPPORTED, /**< Unsupported media/operation. */
-    APP_ERROR        /**< Generic server/application error. */
+    APP_OK, 				/**< Successful result. */
+    APP_CREATED,			/**< Resource created. */
+    APP_NO_CONTENT, 		/**< Successful, no payload. */
+    APP_BAD_REQUEST, 		/**< Client input invalid. */
+    APP_FORBIDDEN,  		/**< Action not permitted. */
+    APP_NOT_FOUND,			/**< Target not found. */
+	APP_METHOD_NOT_ALLOWED, /**< Method is not allowed for the target resource. */
+    APP_UNSUPPORTED, 		/**< Unsupported media/operation. */
+    APP_ERROR				/**< Generic server/application error. */
 };
 
 

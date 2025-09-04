@@ -60,9 +60,11 @@ static enum app_media media_from_content_type(const char *content_type){
  */
 static const char* media_to_http_content_type(enum app_media media){
     switch (media) {
+        case APP_MEDIA_HTML: return "text/html; charset=UTF-8";
+        case APP_MEDIA_JS:   return "text/javascript";
+        case APP_MEDIA_CSS:  return "text/css";
         case APP_MEDIA_JSON: return "application/json; charset=UTF-8";
         case APP_MEDIA_TEXT: return "text/plain; charset=UTF-8";
-        case APP_MEDIA_HTML: return "text/html; charset=UTF-8";
         case APP_MEDIA_BIN:  return "application/octet-stream";
         default: return NULL;
     }
@@ -80,15 +82,16 @@ static const char* media_to_http_content_type(enum app_media media){
  */
 static int app_status_to_http_status(enum app_status status){
     switch (status) {
-        case APP_OK:		  return 200;
-        case APP_CREATED:	  return 201;
-        case APP_NO_CONTENT:  return 204;
-        case APP_BAD_REQUEST: return 400;
-        case APP_FORBIDDEN:   return 403;
-        case APP_NOT_FOUND:   return 404;
-        case APP_UNSUPPORTED: return 415;
-        case APP_ERROR:		  return 500;
-        default:			  return 500;
+        case APP_OK:		  			return 200;
+        case APP_CREATED:	  			return 201;
+        case APP_NO_CONTENT:  			return 204;
+        case APP_BAD_REQUEST: 			return 400;
+        case APP_FORBIDDEN:				return 403;
+        case APP_NOT_FOUND:				return 404;
+        case APP_METHOD_NOT_ALLOWED:	return 404;
+        case APP_UNSUPPORTED: 			return 415;
+        case APP_ERROR:		  			return 500;
+        default:			  			return 500;
     }
 }
 
