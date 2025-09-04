@@ -1,5 +1,7 @@
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -11,7 +13,37 @@ struct posix_file {
     int fd;
 };
 
-static int resolve_under_root(struct fs *vfs, const char *path, char *real_path_out){
+static int resolve_under_root(struct fs *vfs, const char *path, char **real_path_out){
+	if(!vfs || !path || !real_path_out){
+		return FS_INVALID;
+	}
+	if(path[0]=='/') path++;
+	size_t path_len = strlen(path);
+
+	if(path_len >= 2){
+		if (strncmp(path, "..", 2) == 0) return FS_INVALID;
+		for(int i=0; i+2<path_len; i++){
+			if(path[i] == '/' && path[i+1] == '.' && path[i+2] == '.'){
+				return FS_INVALID;
+			}
+		}
+	}
+	bool need_slash = (vfs->root_len > 0 && vfs->root[vfs->root_len-1] != '/');
+	size_t real_path_len = path_len + (size_t)need_slash + vfs->root_len;
+	char *real_path = calloc(real_path_len+1, sizeof(char));
+	if(!real_path) return FS_ERROR;
+	int written = 0;
+	if(need_slash){
+		written = snprintf(real_path, real_path_len+1, "%s/%s", vfs->root, path);
+	}else{
+		written = snprintf(real_path, real_path_len+1, "%s%s", vfs->root, path);
+	}
+	if(written <0 || written >= real_path_len+1){
+		free(real_path);
+		return FS_ERROR;
+	}
+
+	*real_path_out = real_path;
 	return FS_OK;
 }
 
@@ -19,7 +51,7 @@ static ssize_t posix_read(struct fs_file *file, void *buffer, size_t cap) {
     if (!file || !buffer) return -1;
     struct posix_file *pf = (struct posix_file*)file;
     if (pf->fd < 0) return -1;
-    if (cap <= 0) return -1;
+	if(cap == 0) return 0;
     return read_some(pf->fd, buffer, cap);
 }
 
@@ -61,39 +93,49 @@ static int posix_stat(struct fs *vfs, const char *path, struct fs_stat *stat_out
 	if(!vfs || !path || !stat_out) return FS_INVALID;
 
 	char* real_path;
-	int ret = resolve_under_root(vfs, path, real_path);
+	int ret = resolve_under_root(vfs, path, &real_path);
 	if(ret != FS_OK) return ret;
 
-	struct stat stat;
-	if(lstat(real_path, &stat)<0) return FS_ERROR;
-	stat_out->size = (stat.st_size < 0) ? 0 : (uint64_t)stat.st_size;
-	if(S_ISREG(stat.st_mode)){
+	struct stat s_stat;
+	if(lstat(real_path, &s_stat)<0){
+		free(real_path);
+		return FS_ERROR;
+	}
+	stat_out->size = (s_stat.st_size < 0) ? 0 : (uint64_t)s_stat.st_size;
+	if(S_ISREG(s_stat.st_mode)){
 		stat_out->node_type = FS_NODE_FILE;
-	}else if(S_ISDIR(stat.st_mode)){
+	}else if(S_ISDIR(s_stat.st_mode)){
 		stat_out->node_type = FS_NODE_DIR;
 	}
 	else{
 		stat_out->node_type = FS_NODE_UNKNOWN;
 	}
+	free(real_path);
 	return FS_OK;
 }
 
 static int posix_open(struct fs *vfs, const char *path, struct fs_file **file_out){
-	if (!vfs || !vfs->ctx || !path || !file_out) return FS_INVALID;
+	if (!vfs || !path || !file_out) return FS_INVALID;
 
 	char* real_path;
-	int ret = resolve_under_root(vfs, path, real_path);
+	int ret = resolve_under_root(vfs, path, &real_path);
 	if(ret != FS_OK) return ret;
 
-  	int fd = open(real_path, O_RDONLY | O_CLOEXEC);
-  	if (fd < 0) {
-    	if (errno == ENOENT) return FS_NOT_FOUND;
-    	return FS_ERROR;
-  	}
+	int fd = -1;
+	while(1){
+  		fd = open(real_path, O_RDONLY | O_CLOEXEC);
+  		if (fd < 0) {
+			if(errno == EINTR) continue;
+			free(real_path);
+    		if(errno == ENOENT) return FS_NOT_FOUND;
+    		return FS_ERROR;
+  		}
+	}
 
 	struct posix_file *pf = calloc(1,sizeof(struct posix_file));
 	if(!pf){
 		close(fd);
+		free(real_path);
 		return FS_ERROR;
 	}
 
@@ -101,7 +143,7 @@ static int posix_open(struct fs *vfs, const char *path, struct fs_file **file_ou
 	pf->fd = fd;
 
 	*file_out = &pf->base;
-
+	free(real_path);
 	return FS_OK;
 }
 
@@ -109,3 +151,7 @@ static const struct fs_ops posix_fs_ops = {
     .stat = posix_stat,
     .open = posix_open,
 };
+
+const struct fs_ops* get_fs_ops(){
+	return &posix_fs_ops;
+}
