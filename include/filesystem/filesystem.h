@@ -20,8 +20,9 @@
 #include <sys/types.h>
 
 
-/** @enum fs_return_codes
- *  @brief Common negative error codes used by the VFS.
+/** 
+ * @enum fs_return_codes
+ * @brief Common negative error codes used by the VFS.
  */
 enum fs_return_codes {
     FS_OK			  =  0,  /**< Success. */
@@ -68,23 +69,41 @@ struct fs_stat {
  * should be an embedded @ref fs_file so callers can dispatch via @ref fs_file::ops.
  */
 struct fs_file_ops {
-    /**
-     * @brief Read up to @p cap bytes into @p buffer.
-     * @return Number of bytes read (>=0) on success, 0 on EOF,
-     *         or a negative @ref fs_return_codes value on error.
+
+
+	/**
+     * @brief Implementation for “read up to @p cap bytes”.
+     *
+     * Should perform a best-effort read and may return fewer than @p cap
+     * bytes (short read). Return 0 on EOF or a negative @ref fs_return_codes
+     * value on error.
      */
-    ssize_t (*read)(struct fs_file *file, void *buffer, size_t cap);
+    ssize_t (*read_some)(struct fs_file *file, void *buffer, size_t cap);
+
+	
+	/**
+     * @brief Implementation for “read until @p cap bytes or EOF/error”.
+     *
+     * Should attempt to fill @p buffer with exactly @p cap bytes unless EOF
+     * or an error occurs. On EOF before @p cap, return the number of bytes
+     * actually read (>= 0). On error, return a negative @ref fs_return_codes.
+     */
+    ssize_t (*read_all)(struct fs_file *file, void *buffer, size_t cap);
+
 
     /**
      * @brief Move the read position to absolute @p offset (in bytes).
      * @note Optional; may be NULL if seeking is unsupported.
+	 *
      * @return @ref FS_OK on success, @ref FS_NOT_SUPPORTED if NULL,
      *         or a negative error code.
      */
     int (*seek)(struct fs_file *file, uint64_t offset);
 
+
     /**
      * @brief Close the file and release resources.
+	 *
      * @return @ref FS_OK on success or a negative error code.
      */
     int (*close)(struct fs_file *file);
@@ -115,6 +134,7 @@ struct fs_ops {
      * @param vfs      Filesystem handle.
      * @param path     Path to query. Convention: relative to @ref fs::root.
      * @param stat_out Output metadata (must not be NULL).
+	 *
      * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
      */
     int (*stat)(struct fs *vfs, const char *path, struct fs_stat *stat_out);
@@ -124,6 +144,7 @@ struct fs_ops {
      * @param vfs      Filesystem handle.
      * @param path     Path to open. Convention: relative to @ref fs::root.
      * @param file_out Receives an opened file handle on success (must not be NULL).
+	 *
      * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
      */
     int (*open)(struct fs *vfs, const char *path, struct fs_file **file_out);
@@ -166,6 +187,7 @@ int fs_init(struct fs *vfs, const struct fs_ops *ops, const char *root, void *ct
  * @param vfs      Filesystem handle.
  * @param path     Path to query (typically relative to @ref fs::root).
  * @param stat_out Output metadata (must not be NULL).
+ *
  * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
  */
 int fs_stat (struct fs *vfs, const char *path, struct fs_stat *stat_out);
@@ -176,23 +198,57 @@ int fs_stat (struct fs *vfs, const char *path, struct fs_stat *stat_out);
  * @param vfs      Filesystem handle.
  * @param path     Path to open (typically relative to @ref fs::root).
  * @param file_out Receives the opened file on success (must not be NULL).
+ *
  * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
  */
 int fs_open (struct fs *vfs, const char *path, struct fs_file **file_out);
 
 
 /**
- * @brief Read from an open file into @p buffer.
- * @param file   Open file handle.
- * @param buffer Destination buffer.
- * @param cap    Max number of bytes to read.
- * @return Bytes read (>=0), 0 on EOF, or a negative error code.
+ * @brief Read at most @p cap bytes from an open file into @p buffer.
+ *
+ * This function may return fewer than @p cap bytes even if more data is
+ * available (i.e., a short read). A return value of 0 indicates end-of-file.
+ *
+ * Semantics:
+ *  - If @p cap == 0, the call is a no-op and returns 0.
+ *  - On success, returns the number of bytes read (>= 0).
+ *  - On error, returns a negative @ref fs_return_codes value.
+ *
+ * @param file   Open file handle (must not be NULL).
+ * @param buffer Destination buffer (must not be NULL when @p cap > 0).
+ * @param cap    Maximum number of bytes to read.
+ *
+ * @return Bytes read (>= 0), 0 on EOF, or < 0 on error. 
  */
-ssize_t fs_read (struct fs_file *file, void *buffer, size_t cap);
+ssize_t fs_read_some (struct fs_file *file, void *buffer, size_t cap);
+
+
+/**
+ * @brief Attempt to read exactly @p cap bytes unless EOF or an error occurs.
+ *
+ * Reads repeatedly until either @p cap bytes have been read, EOF is reached,
+ * or an error occurs. If EOF occurs before @p cap bytes are read, the function
+ * returns the number of bytes actually read (which may be less than @p cap).
+ *
+ * Semantics:
+ *  - If @p cap == 0, the call is a no-op and returns 0.
+ *  - On success, returns the total number of bytes read in [0, @p cap].
+ *  - On error, returns a negative @ref fs_return_codes value; any bytes read
+ *    before the error remain in @p buffer.
+ *
+ * @param file   Open file handle (must not be NULL).
+ * @param buffer Destination buffer (must not be NULL when @p cap > 0).
+ * @param cap    Total number of bytes to read.
+ *
+ * @return Bytes read (>= 0), 0 on EOF, or < 0 on error.
+ */
+ssize_t fs_read_all (struct fs_file *file, void *buffer, size_t cap);
 
 
 /**
  * @brief Seek to absolute byte @p offset in an open file (if supported).
+ *
  * @return @ref FS_OK on success, @ref FS_NOT_SUPPORTED if not available,
  *         or a negative error code.
  */
@@ -201,6 +257,7 @@ int fs_seek (struct fs_file *file, uint64_t offset);
 
 /**
  * @brief Close an open file handle.
+ *
  * @return @ref FS_OK on success or a negative error code.
  */
 int fs_close(struct fs_file *file);

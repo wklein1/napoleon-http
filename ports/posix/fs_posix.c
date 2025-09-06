@@ -79,7 +79,7 @@ static int resolve_under_root(struct fs *vfs, const char *path, char **real_path
  * @return Number of bytes read (>=0) on success;
  *         -1 on error (invalid args, closed fd, or read failure).
  */
-static ssize_t posix_read(struct fs_file *file, void *buffer, size_t cap) {
+static ssize_t posix_read_some(struct fs_file *file, void *buffer, size_t cap) {
     if (!file || !buffer) return -1;
     struct posix_file *pf = (struct posix_file*)file;
     if (pf->fd < 0) return -1;
@@ -88,6 +88,13 @@ static ssize_t posix_read(struct fs_file *file, void *buffer, size_t cap) {
 }
 
 
+static ssize_t posix_read_all(struct fs_file *file, void *buffer, size_t cap) {
+    if (!file || !buffer) return -1;
+    struct posix_file *pf = (struct posix_file*)file;
+    if (pf->fd < 0) return -1;
+	if(cap == 0) return 0;
+    return read_all(pf->fd, buffer, cap);
+}
 
 /**
  * @brief Reposition file offset to an absolute @p offset (SEEK_SET).
@@ -151,9 +158,10 @@ static int posix_close(struct fs_file *file) {
  * filesystem wrappers (fs_read/fs_seek/fs_close).
  */
 static const struct fs_file_ops posix_file_ops = {
-    .read  = posix_read,
-    .seek  = posix_seek,
-    .close = posix_close,
+    .read_some  = posix_read_some,
+    .read_all   = posix_read_all,
+    .seek  		= posix_seek,
+    .close 		= posix_close,
 };
 
 

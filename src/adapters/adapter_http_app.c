@@ -88,7 +88,7 @@ static int app_status_to_http_status(enum app_status status){
         case APP_BAD_REQUEST: 			return 400;
         case APP_FORBIDDEN:				return 403;
         case APP_NOT_FOUND:				return 404;
-        case APP_METHOD_NOT_ALLOWED:	return 404;
+        case APP_METHOD_NOT_ALLOWED:	return 405;
         case APP_UNSUPPORTED: 			return 415;
         case APP_ERROR:		  			return 500;
         default:			  			return 500;
