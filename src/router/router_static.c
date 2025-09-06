@@ -4,6 +4,24 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+
+/**
+ * @brief Map a filename extension to an @ref app_media value.
+ *
+ * Expects @p ext to point to the leading dot of the extension
+ * (e.g., ".html"). The comparison is **case-sensitive**.
+ *
+ * Recognized mappings:
+ *  - ".html", ".htm" → APP_MEDIA_HTML
+ *  - ".js"           → APP_MEDIA_JS
+ *  - ".css"          → APP_MEDIA_CSS
+ *  - ".txt"          → APP_MEDIA_TEXT
+ *  - ".json"         → APP_MEDIA_JSON
+ * Unknown or NULL → APP_MEDIA_BIN.
+ *
+ * @param ext Pointer to the extension substring (may be NULL).
+ * @return Corresponding media type, or APP_MEDIA_BIN if unknown/NULL.
+ */
 static enum app_media media_from_ext(const char *ext) {
 	
 	if(!ext) return APP_MEDIA_BIN;
@@ -17,6 +35,19 @@ static enum app_media media_from_ext(const char *ext) {
 }
 
 
+/**
+ * @brief Find the extension in a path and return a pointer to the dot.
+ *
+ * Looks for the last '/' in @p path, then searches for the last '.'
+ * after that position. If present, returns a pointer to the '.' inside
+ * @p path; otherwise returns NULL.
+ *
+ * No allocation or copying is performed; the returned pointer remains
+ * valid only as long as @p path is valid.
+ *
+ * @param path NUL-terminated path string (must not be NULL).
+ * @return Pointer to the '.' starting the extension, or NULL if none.
+ */
 static const char* find_ext(const char *path) {
     const char *last_slash = strrchr(path, '/');
     const char *start = last_slash ? last_slash + 1 : path;
@@ -25,6 +56,33 @@ static const char* find_ext(const char *path) {
 }
 
 
+/**
+ * @brief Build a docroot-relative path from a URL path and mount prefix.
+ *
+ * Behavior:
+ *  - Skips a single '/' immediately after the prefix (if present).
+ *  - Truncates at the first '?' or '#' (query/fragment start).
+ *  - If the remaining part is empty or ends with '/', appends @p index_name.
+ *  - Two-phase API:
+ *      * If @p out_cap == 0: return the required length (excluding the NUL)
+ *        and do not write to @p rel_path_out.
+ *      * Otherwise: write the path into @p rel_path_out, NUL-terminate it,
+ *        and return the length written (excluding the NUL).
+ *
+ * Notes:
+ *  - The caller is responsible for ensuring that @p path actually matches
+ *    the prefix and for any security checks beyond query/fragment stripping.
+ *
+ * @param path          Full URL path (NUL-terminated, must not be NULL).
+ * @param path_len      Length of @p path in bytes (excluding the NUL).
+ * @param prefix_len    Length of the prefix within @p path.
+ * @param index_name    Default filename for directory requests (e.g., "index.html").
+ * @param rel_path_out  Output buffer (may be NULL only when @p out_cap == 0).
+ * @param out_cap       Capacity of @p rel_path_out in bytes, including space for the NUL.
+ *
+ * @return Required length (>= 0) on success; -1 on error
+ *         (invalid args, insufficient capacity, or @p path_len <= @p prefix_len).
+ */
 static ssize_t build_rel_path(const char *path, size_t path_len, size_t prefix_len, 
 						  const char *index_name, char *rel_path_out, size_t out_cap){
 
