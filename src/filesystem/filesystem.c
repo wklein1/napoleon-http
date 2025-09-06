@@ -34,14 +34,25 @@ int fs_open(struct fs *vfs, const char *path, struct fs_file **file_out)
 }
 
 
-ssize_t fs_read(struct fs_file *file, void *buffer, size_t cap)
+ssize_t fs_read_some(struct fs_file *file, void *buffer, size_t cap)
 {
     if (!file || !file->ops)	return FS_ERROR;
-	if (!file->ops->read)		return FS_ERROR;
+	if (!file->ops->read_some)		return FS_ERROR;
     if (cap <= 0)				return FS_ERROR;
 	if (!buffer)				return FS_ERROR;
 
-    return file->ops->read(file, buffer, cap);
+    return file->ops->read_some(file, buffer, cap);
+}
+
+
+ssize_t fs_read_all(struct fs_file *file, void *buffer, size_t cap)
+{
+    if (!file || !file->ops)	return FS_ERROR;
+	if (!file->ops->read_all)	return FS_ERROR;
+    if (cap <= 0)				return FS_ERROR;
+	if (!buffer)				return FS_ERROR;
+
+    return file->ops->read_all(file, buffer, cap);
 }
 
 
