@@ -60,7 +60,6 @@ static int resolve_under_root(struct fs *vfs, const char *path, char **real_path
 		free(real_path);
 		return FS_ERROR;
 	}
-
 	*real_path_out = real_path;
 	return FS_OK;
 }
@@ -87,7 +86,24 @@ static ssize_t posix_read_some(struct fs_file *file, void *buffer, size_t cap) {
     return read_some(pf->fd, buffer, cap);
 }
 
-
+/**
+ * @brief Read (attempt to) exactly @p cap bytes from an open file descriptor.
+ *
+ * Thin wrapper around the helper @c read_all() that repeatedly calls read(2)
+ * until either @p cap bytes have been placed into @p buffer, EOF is reached,
+ * or a non-recoverable error occurs. Short reads and EINTR are handled
+ * internally by @c read_all().
+ *
+ * A @p cap of 0 is treated as a successful no-op and returns 0.
+ *
+ * @param file    File handle previously returned by posix_open (must be non-NULL).
+ * @param buffer  Destination buffer with capacity for at least @p cap bytes (non-NULL).
+ * @param cap     Target number of bytes to read (0 allowed).
+ *
+ * @return Number of bytes read (>= 0) on success. This may be less than @p cap
+ *         only if EOF is encountered before @p cap bytes could be read;
+ *         -1 on error (invalid arguments, closed/invalid fd, or read failure).
+ */
 static ssize_t posix_read_all(struct fs_file *file, void *buffer, size_t cap) {
     if (!file || !buffer) return -1;
     struct posix_file *pf = (struct posix_file*)file;
@@ -182,17 +198,23 @@ static const struct fs_file_ops posix_file_ops = {
  */
 static int posix_stat(struct fs *vfs, const char *path, struct fs_stat *stat_out){
 	if(!vfs || !path || !stat_out) return FS_INVALID;
-
 	char* real_path;
 	int ret = resolve_under_root(vfs, path, &real_path);
-	if(ret != FS_OK) return ret;
+	if(ret != FS_OK){
+		return ret;
+	}
 
 	struct stat s_stat;
-	if(lstat(real_path, &s_stat)<0){
+	int lstat_ret = 0;
+    lstat_ret = lstat(real_path, &s_stat);
+	if(lstat_ret < 0){
+		if(errno == ENOENT || errno == ENOTDIR) return FS_NOT_FOUND;
 		free(real_path);
 		return FS_ERROR;
 	}
+
 	stat_out->size = (s_stat.st_size < 0) ? 0 : (uint64_t)s_stat.st_size;
+
 	if(S_ISREG(s_stat.st_mode)){
 		stat_out->node_type = FS_NODE_FILE;
 	}else if(S_ISDIR(s_stat.st_mode)){
@@ -264,6 +286,68 @@ static int posix_open(struct fs *vfs, const char *path, struct fs_file **file_ou
 
 
 /**
+ * @brief Create a directory relative to the configured filesystem root.
+ *
+ * Resolves @p path under @p vfs->root (rejecting any traversal outside the root)
+ * and calls mkdir(2) with mode @c 0755. When @p recursive is true, this behaves
+ * like @c mkdir -p: all missing parent components are created in order and
+ * existing components (EEXIST) are treated as success. EINTR is retried.
+ *
+ * When @p recursive is false, only the leaf directory is created; EEXIST is
+ * treated as success.
+ *
+ * @param vfs       Filesystem instance (must be non-NULL and initialized).
+ * @param path      Directory path relative to the root (a leading '/' is allowed).
+ * @param recursive If true, create missing parents (mkdir -p semantics);
+ *                  if false, create only the leaf directory.
+ *
+ * @return FS_OK        on success (including when the directory already exists).
+ * 		   FS_INVALID   on bad arguments or when path resolution rejects traversal.
+ * 		   FS_ERROR     on other failures from resolve_under_root() or mkdir(2).
+ *
+ * @note Path resolution is performed by resolve_under_root(), which prevents
+ *       ".." traversal from escaping @p vfs->root.
+ */ 
+static int posix_mkdir(struct fs *vfs, const char *path, bool recursive){
+    char *real_path = NULL;
+    int ret = resolve_under_root(vfs, path, &real_path);
+    if (ret != FS_OK) return ret;
+
+    ret = FS_OK;
+    if (!recursive) {
+        while (1) {
+			ret = mkdir(real_path, 0755);
+            if(ret == 0) break; 
+            if(ret < 0 && errno == EEXIST) break;
+            if(ret < 0 && errno == EINTR) continue;
+            ret = FS_ERROR; break;
+        }
+        free(real_path);
+        return ret;
+    }
+
+    size_t real_path_len = strlen(real_path);
+    for (size_t i = 1; i < real_path_len; i++) {
+        if (real_path[i] != '/' && real_path[i] != '\0'){
+			continue;
+		}
+        char c = real_path[i];
+        real_path[i] = '\0';
+        while (1) {
+			ret = mkdir(real_path, 0755);
+            if(ret == 0) break; 
+            if(ret < 0 && errno == EEXIST) break;
+            if(ret < 0 && errno == EINTR) continue;
+            ret = FS_ERROR; goto cleanup;
+        }
+        real_path[i] = c;
+    }
+cleanup:
+    free(real_path);
+    return ret;
+}
+
+/**
  * @brief POSIX filesystem operations table for the filesystem abstraction.
  *
  * Implements the @ref fs_ops interface using POSIX syscalls.
@@ -281,6 +365,7 @@ static int posix_open(struct fs *vfs, const char *path, struct fs_file **file_ou
 static const struct fs_ops posix_fs_ops = {
     .stat = posix_stat,
     .open = posix_open,
+	.mkdir = posix_mkdir,
 };
 
 const struct fs_ops* get_fs_ops(){

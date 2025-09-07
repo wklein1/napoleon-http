@@ -125,8 +125,17 @@ struct fs_file {
 /**
  * @brief Filesystem root operations (vtable).
  *
- * Implementations provide these functions to perform @c stat and @c open
- * relative to the filesystem’s configured root.
+ * Implementations MUST provide all functions in this table. If a concrete filesystem
+ * cannot perform a given operation, it MUST still supply a stub that returns
+ * an appropriate error (e.g., @ref FS_NOT_SUPPORTED).
+ *
+ * Semantics & conventions:
+ *  - All @p path arguments are interpreted **relative to** @ref fs::root.
+ *    A leading '/' MAY be accepted and treated as relative to the root.
+ *  - Backends MUST prevent path traversal outside the root (reject "..").
+ *  - Return values follow @ref fs_return_codes (non-negative success, negative error).
+ *  - Thread-safety is implementation-defined; document if additional external
+ *    synchronization is required.
  */
 struct fs_ops {
     /**
@@ -148,6 +157,26 @@ struct fs_ops {
      * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
      */
     int (*open)(struct fs *vfs, const char *path, struct fs_file **file_out);
+
+	/**
+     * @brief Create a directory at @p path (optionally with parents).
+     *
+     * If @p recursive is true, create missing parent components as well
+     * (i.e., “mkdir -p” semantics). Existing components (EEXIST) should be
+     * treated as success. Implementations should honor the process @c umask
+     * and may retry on @c EINTR.
+     *
+     * @param vfs       Filesystem handle (must not be NULL).
+     * @param path      Directory path relative to @ref fs::root (leading '/' allowed).
+     * @param recursive If true, create missing parents; if false, create only the leaf.
+     *
+     * @return @ref FS_OK on success (including when the directory already exists);
+     *         @ref FS_NOT_FOUND if parents are missing and @p recursive is false;
+     *         @ref FS_INVALID on bad arguments or rejected traversal;
+     *         @ref FS_NOT_SUPPORTED if the filesystem does not support directory creation;
+     *         @ref FS_ERROR on other failures.
+     */
+	int (*mkdir)(struct fs *vfs, const char *path, bool recursive); 
 };
 
 
@@ -179,7 +208,7 @@ struct fs {
  *
  * @return FS_OK on success; FS_INVALID if any required pointer is missing.
  */
-int fs_init(struct fs *vfs, const struct fs_ops *ops, const char *root, void *ctx);
+int fs_init(struct fs *vfs, const struct fs_ops *ops, const char *root, size_t root_len, void *ctx);
 
 
 /**
@@ -202,6 +231,56 @@ int fs_stat (struct fs *vfs, const char *path, struct fs_stat *stat_out);
  * @return @ref FS_OK, @ref FS_NOT_FOUND, or a negative error code.
  */
 int fs_open (struct fs *vfs, const char *path, struct fs_file **file_out);
+
+
+/**
+ * @brief Create a directory relative to the filesystem root.
+ *
+ * Resolves @p path under @ref fs::root and attempts to create the directory.
+ * When @p recursive is true, missing parent components are created as well
+ * (i.e., “mkdir -p” semantics); existing components are treated as success.
+ *
+ * Semantics:
+ *  - If the target directory already exists, return @ref FS_OK.
+ *  - If a parent is missing and @p recursive is false, return @ref FS_NOT_FOUND.
+ *  - If a non-directory already exists at @p path, return @ref FS_ERROR.
+ *
+ * @param vfs       Filesystem handle (must not be NULL).
+ * @param path      Directory path relative to @ref fs::root (leading '/' allowed).
+ * @param recursive If true, create missing parents; if false, create only the leaf.
+ *
+ * @return @ref FS_OK on success;
+ *         @ref FS_INVALID on bad arguments or rejected traversal;
+ *         @ref FS_NOT_FOUND if parents are missing and @p recursive is false;
+ *         @ref FS_NOT_SUPPORTED if the concrete filesystem cannot create directories;
+ *         @ref FS_ERROR on other failures (e.g., permission denied, type conflicts).
+ */
+int fs_mkdir(struct fs *vfs, const char *path, bool recursive);
+
+
+/**
+ * @brief Ensure that @p path exists and is a directory; create it if necessary.
+ *
+ * Convenience wrapper that first checks the node at @p path:
+ *  - If it exists and is a directory, return @ref FS_OK.
+ *  - If it exists and is not a directory, return @ref FS_ERROR.
+ *  - If it does not exist, call @ref fs_mkdir with the given @p recursive flag.
+ *
+ * This function resolves @p path under @ref fs::root and never escapes the root.
+ *
+ * @param vfs       Filesystem handle (must not be NULL).
+ * @param path      Directory path relative to @ref fs::root (leading '/' allowed).
+ * @param recursive If true, create missing parents (mkdir -p semantics) when absent.
+ *
+ * @return @ref FS_OK on success;
+ *         @ref FS_INVALID on bad arguments or rejected traversal;
+ *         @ref FS_NOT_FOUND if parents are missing and @p recursive is false;
+ *         @ref FS_NOT_SUPPORTED if the concrete filesystem does not support directory creation;
+ *         @ref FS_ERROR on other failures (e.g., permission denied, type conflict).
+ *
+ * @note Pass an empty string or "/" to ensure the VFS root exists.
+ */
+int fs_ensure_dir(struct fs *vfs, const char *path, bool recursive);
 
 
 /**

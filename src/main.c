@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -10,6 +11,8 @@
 #include "../include/app.h"
 #include "../include/core/http_core.h"
 #include "../include/adapters/adapter_http_app.h"
+#include "../include/filesystem/filesystem.h"
+#include "../ports/posix/fs_posix.h"
 
 
 static int parse_port(const char *input, uint16_t *output) {
@@ -65,7 +68,16 @@ int main(int argc, char** argv){
 		.adapter_context = &adapter_context
 	};
 
-	if(app_init()<0) exit(-1);
+	const char public_root[]= "./public";
+	struct fs vfs = {0};
+	fs_init(&vfs, get_fs_ops(), public_root, sizeof(public_root)-1, NULL);
+
+	int dir_ret = fs_ensure_dir(&vfs, "/", true);
+	if (dir_ret != FS_OK){
+		fprintf(stderr, "Could not find or create root dir %s\n", public_root);
+		exit(1);
+	}
+	if(app_init(&vfs)<0) exit(-1);
 
     return server_start(&server_cfg, http_handle_connection, &http_core_context);
 }

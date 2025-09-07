@@ -14,6 +14,7 @@
  * allocated on the heap (payload_owned = true).
  */
 
+
 /**
  * @struct static_router
  * @brief Configuration and state for the static-file router.
@@ -24,6 +25,7 @@ struct static_router {
   const char *index_name;	/**< Default file for directories (defaults to "index.html") */
   size_t max_bytes;			/**< max file size to read into memory (0 = no limit) */
 };
+
 
 /**
  * @brief Initialize a static router.
@@ -37,13 +39,14 @@ struct static_router {
 void static_router_init(struct static_router *router, const char *prefix, struct fs *vfs, 
 						const char *index_name, size_t max_bytes);
 
+
 /**
  * @brief Try to serve a request from the filesystem.
  *
  * Behavior:
  *  - If method is not GET, writes app 405 response, returns 0 (handled).
  *  - If path does not start with router's prefix, returns 1 (not handled).
- *  - If a matching file is found and within size limit, fills @p res and returns 0
+ *  - If a matching file is found and within size limit, fills @pbeginnin res and returns 0
  *  - If no matching file is found, writes app 404 response, return 0 (handled).
  *  - On internal error (I/O, allocation, etc.) returns -1.
  *

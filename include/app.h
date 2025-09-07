@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-
 /**
  * @brief Protocol-agnostic application.
  *
@@ -16,6 +15,18 @@
  *       The application must ensure their lifetime until the adapter has
  *       completed sending the response.
  */
+
+
+/**
+ * @brief Opaque virtual filesystem handle.
+ *
+ * Forward declaration; the full definition lives in @ref filesystem.h.
+ * The application treats this as an immutable VFS environment used by
+ * the static-file router. Ownership is NOT transferred: the pointer
+ * passed to @ref app_init must remain valid for the duration of request
+ * handling (typically until process shutdown).
+ */
+struct fs;
 
 
 /**
@@ -109,17 +120,25 @@ struct app_response{
 	bool 				payload_owned;  /**< true if framework should free(payload) after send. */
 };
 
+
 /**
- * @brief Initialize application state (e.g., register routes).
+ * @brief Initialize application state (routers, handlers) and bind a VFS.
  *
- * Call exactly once during program startup (e.g., from `main()`), before any
- * worker threads/tasks handle requests. The function should be **idempotent**, 
- * but is not inherently thread-safe unless explicitly implemented with synchronization 
- * (e.g., `pthread_once`).
+ * Wires up the API router (e.g., “/api”) and the static-file router that
+ * serves content from the provided virtual filesystem @p vfs. Call exactly
+ * once during process startup, before any requests are handled.
  *
- * @return 0 on success, -1 on failure.
+ * Semantics & constraints:
+ *  - The function is **idempotent**: subsequent calls after a successful
+ *    initialization return 0 and leave the existing configuration intact.
+ *  - @p vfs is required and must outlive the application (no ownership
+ *    transfer). The application stores the pointer for later use.
+ *  - Not inherently thread-safe; invoke from a single thread during startup.
+ *
+ * @param vfs Virtual filesystem to be used by the static router (must not be NULL).
+ * @return 0 on success; -1 on failure (e.g., NULL @p vfs or route registration error).
  */
-int app_init();
+int app_init(struct fs *vfs);
 
 
 /**
