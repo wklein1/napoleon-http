@@ -68,16 +68,33 @@ int main(int argc, char** argv){
 		.adapter_context = &adapter_context
 	};
 
-	const char public_root[]= "./public";
-	struct fs vfs = {0};
-	fs_init(&vfs, get_fs_ops(), public_root, sizeof(public_root)-1, NULL);
 
-	int dir_ret = fs_ensure_dir(&vfs, "/", true);
+	const char public_root[] = "./public";
+	const char docs_root[]   = "./docs";
+
+	struct fs vfs_public = {0};
+	struct fs vfs_docs   = {0};
+
+	fs_init(&vfs_public, get_fs_ops(), public_root, sizeof(public_root)-1, NULL);
+	fs_init(&vfs_docs,   get_fs_ops(), docs_root,   sizeof(docs_root)-1,   NULL);
+
+	int dir_ret = fs_ensure_dir(&vfs_public, "/", true);
 	if (dir_ret != FS_OK){
-		fprintf(stderr, "Could not find or create root dir %s\n", public_root);
-		exit(1);
+    	fprintf(stderr, "Could not find or create root dir %s\n", public_root);
+    	exit(1);
 	}
-	if(app_init(&vfs)<0) exit(-1);
+
+	dir_ret = fs_ensure_dir(&vfs_docs, "/", true);
+	if (dir_ret != FS_OK){
+    	fprintf(stderr, "Could not find or create root dir %s\n", docs_root);
+		exit(1);
+	}	
+
+	const struct app_mount mounts[] = {
+    	{"/public", &vfs_public, "index.html", 500 * 1024},
+    	{"/docs",   &vfs_docs,   "index.html", 500 * 1024},
+	};
+	if(app_init(mounts, 2) <0) exit(-1);
 
     return server_start(&server_cfg, http_handle_connection, &http_core_context);
 }
