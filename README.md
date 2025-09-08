@@ -63,7 +63,7 @@ Binary paths:
      You’ll be redirected to /docs/ and see the docs index page.
    * The example page under /public/ is at http://localhost:3001/public/
 
-3. If you picked a custom port
+3. If you picked a custom port e.g.
    ```make run ARGS=8080```
    Then open http://localhost:8080/
    > **Note:**
