@@ -68,4 +68,4 @@ Binary paths:
    Then open http://localhost:8080/
    > **Note:**
    > The server binds to 127.0.0.1 (loopback) by default. You can only access it from the same machine.
-   > To test from other devices on your network, change the bind host in your code to "0.0.0.0" (and then visit http://<your-ip>:<port>/).
+   > To test from other devices on your network, change the bind host in your code to "0.0.0.0" (and then visit ```http://<your-ip>:<port>/```).
