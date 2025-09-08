@@ -21,8 +21,8 @@ void http_request_clear(struct http_request *req) {
 	free(req->version);
 	if(req->headers){
 		for(size_t i=0;i<req->num_headers;i++){
-			if (req->headers[i].name_owned == true) free(req->headers[i].name);
-			if (req->headers[i].value_owned == true) free(req->headers[i].value);
+			if (req->headers[i].name && req->headers[i].name_owned == true) free((void*)req->headers[i].name);
+			if (req->headers[i].value && req->headers[i].value_owned == true) free((void*)req->headers[i].value);
 		}
 		free(req->headers);
     }

@@ -69,6 +69,10 @@ static const char* get_reason_phrase(enum http_status status){
 		case HTTP_OK: return "OK";
 		case HTTP_CREATED: return "Created";
 		case HTTP_NO_CONTENT: return "No Content";
+		case HTTP_REDIR_PERM: return "Moved Permanently";
+		case HTTP_REDIR_TEMP: return "Found";
+		case HTTP_REDIR_TEMP_PRE: return "Temporary Redirect";
+		case HTTP_REDIR_PERM_PRE: return "Permanent Redirect";
 		case HTTP_BAD_REQUEST: return "Bad Request";
 		case HTTP_FORBIDDEN: return "Forbidden";
 		case HTTP_NOT_FOUND: return "Not Found";
@@ -82,13 +86,13 @@ static const char* get_reason_phrase(enum http_status status){
 void http_response_clear(struct http_response *res){
 	if (res->extra_headers) {
     	for (size_t i = 0; i < res->extra_headers_count; i++) {
-        	if (res->extra_headers[i].name_owned){
-				free(res->extra_headers[i].name);
+        	if (res->extra_headers[i].name && res->extra_headers[i].name_owned){
+				free((void*)res->extra_headers[i].name);
 				res->extra_headers[i].name = NULL;
 				res->extra_headers[i].name_owned = false;
 			}
-        	if (res->extra_headers[i].value_owned){
-				free(res->extra_headers[i].value);
+        	if (res->extra_headers[i].value && res->extra_headers[i].value_owned){
+				free((void*)res->extra_headers[i].value);
 				res->extra_headers[i].value = NULL;
 				res->extra_headers[i].value_owned = false;
 			}

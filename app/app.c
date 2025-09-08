@@ -1,11 +1,17 @@
+#include <stdbool.h>
 #include "../include/app.h"
 #include "../include/router/router_api.h"
 #include "../include/router/router_static.h"
 #include "../include/router/route_handlers.h"
-#include <stdbool.h>
+#include "../include/router/redirect_registry.h"
+
 
 static struct api_router api_router;
 static struct static_router static_router;
+
+static struct redirect_registry redirects;
+static struct redirect_rule     redirect_rules[MAX_REDIRECTS];
+
 static bool app_inited = false;
 
 int app_init(struct fs *vfs) {
@@ -18,13 +24,43 @@ int app_init(struct fs *vfs) {
 
     static_router_init(&static_router, "/public", vfs, "index.html", 500 * 1024);
 
+	redirect_registry_init(&redirects, redirect_rules, false, MAX_REDIRECTS, 0);
+    redirect_add(&redirects, "/public", "/public/", EXACT, false, APP_REDIRECT_PERMANENT);
+
 	app_inited = true;
     return 0;
 }
 
+
+int app_make_redirect(struct app_response *res, const char *location,
+                      bool location_owned, enum app_redirect_type type){
+
+    if (!res || !location) return -1;
+
+    res->status        = APP_OK;
+    res->media_type    = APP_MEDIA_NONE;
+    res->payload       = NULL;
+    res->payload_len   = 0;
+    res->payload_owned = false;
+
+    res->redirect.enabled        = true;
+    res->redirect.location       = location;
+    res->redirect.location_owned = location_owned;
+    res->redirect.type           = type;
+    return 0;
+}
+
+
 int app_handle_client(const struct app_request *req, struct app_response *res){    
     if(!req || !res) return -1;
 	if(!app_inited)  return -1;
+
+	struct redirect_result redirect_res = {0};
+	int redirect_ret = redirect_lookup(&redirects, req->path, &redirect_res);
+	if (redirect_ret < 0) return -1;
+	if (redirect_ret == 0){
+    	return app_make_redirect(res, redirect_res.target, redirect_res.target_owned, redirect_res.type);
+	}
 
 	int	api_router_res = api_router_handle(&api_router, req, res);
 	if(api_router_res < 0) return -1;
@@ -38,6 +74,7 @@ int app_handle_client(const struct app_request *req, struct app_response *res){
     	res->payload       = message;
     	res->payload_len   = sizeof(message) - 1;
 		res->payload_owned = false;
+		res->redirect.enabled = false;
 		return 0;
 	}
 	return 0;

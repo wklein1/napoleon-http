@@ -187,7 +187,7 @@ int static_router_handle(struct static_router *router, const struct app_request 
         return 0;
     }
 
-	if (stat.size > SIZE_MAX || router->max_bytes && stat.size > router->max_bytes) {
+	if (stat.size > SIZE_MAX || (router->max_bytes && stat.size > router->max_bytes)) {
         static const char tl_message[] = "File too large\n";
         out->status        = APP_FORBIDDEN;
         out->media_type    = APP_MEDIA_TEXT;

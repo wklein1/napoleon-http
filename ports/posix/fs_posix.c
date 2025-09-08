@@ -40,7 +40,7 @@ static int resolve_under_root(struct fs *vfs, const char *path, char **real_path
 
 	if(path_len >= 2){
 		if (strncmp(path, "..", 2) == 0) return FS_INVALID;
-		for(int i=0; i+2<path_len; i++){
+		for(size_t i=0; i+2<path_len; i++){
 			if(path[i] == '/' && path[i+1] == '.' && path[i+2] == '.'){
 				return FS_INVALID;
 			}
@@ -56,7 +56,7 @@ static int resolve_under_root(struct fs *vfs, const char *path, char **real_path
 	}else{
 		written = snprintf(real_path, real_path_len+1, "%s%s", vfs->root, path);
 	}
-	if(written <0 || written >= real_path_len+1){
+	if(written < 0 || (size_t)written >= real_path_len+1){
 		free(real_path);
 		return FS_ERROR;
 	}
