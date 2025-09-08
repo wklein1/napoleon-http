@@ -52,6 +52,32 @@ Binary paths:
  - ```build/release/napoleon_httpd```
 
 ---
+
+### Preconfigured paths:
+
+- static:
+    - /docs/
+    - /public/
+- api:
+    - /api/echo
+
+---
+### Quick checks 
+```bash
+
+# Redirects
+curl -i http://localhost:3001/
+curl -i http://localhost:3001/docs
+
+# Static files
+curl -i http://localhost:3001/docs/
+curl -I http://localhost:3001/public/napoleon-cake.jpg
+
+# API echo
+curl -i -X POST http://localhost:3001/api/echo -d 'hello from POST'
+
+```
+---
 ### Run the server & open in your browser
 
 1. Start the server:
@@ -69,3 +95,43 @@ Binary paths:
    > **Note:**
    > The server binds to 127.0.0.1 (loopback) by default. You can only access it from the same machine.
    > To test from other devices on your network, change the bind host in your code to "0.0.0.0" (and then visit ```http://<your-ip>:<port>/```).
+---
+### How a request flows through the server (current design)
+
+1. **Accept & parse**
+
+    The POSIX listener (server.c) accepts a TCP connection and hands the socket to the HTTP core.
+    The core reads bytes, the HTTP parser builds an http_request (method, path, headers, body).
+
+2. **HTTP↔App bridge**
+
+    The adapter (adapter_http_app.c) maps http_request → app_request and calls app_handle_client.
+    It later maps app_response (or an app-level redirect) back to an http_response.
+
+3. **Redirects (first chance)**
+
+    Inside the app (app.c), a redirect registry is consulted first.
+    Examples: / → /docs/ and /docs → /docs/ (canonical trailing slash).
+    If a rule matches, the app fills app_response.redirect; the adapter returns a 3xx with Location.
+
+4. **Dynamic routes (/api)**
+
+    If no redirect, the API router (prefix /api) tries to handle the request (e.g., /api/echo).
+    On success it returns an app response (status, media type, payload).
+
+5. **Static files (one or more mounts)**
+
+    If still unhandled, the app iterates static routers (e.g., /public, /docs).
+    A matching router serves files via the virtual filesystem (VFS):
+
+    Directory requests fall back to index.html (configurable per mount).
+
+    File size is checked against the mount’s max_bytes.
+
+    All file access goes through the VFS (filesystem.c), which calls the active backend (currently POSIX: fs_posix.c).
+    The POSIX backend resolves paths under the configured root and blocks .. traversal.
+
+6. **Serialize & send**
+
+    The adapter converts the app response to HTTP (status, Content-Type via http_mime.c, headers, body).
+    The HTTP core writes headers + body with Content-Length and Connection: close, then closes the socket.
