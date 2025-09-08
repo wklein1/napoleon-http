@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include "./redirect/redirect_types.h"
 
 /**
  * @brief Protocol-agnostic application.
@@ -16,6 +17,7 @@
  *       completed sending the response.
  */
 
+#define MAX_REDIRECTS 5 
 
 /**
  * @brief Opaque virtual filesystem handle.
@@ -85,6 +87,14 @@ enum app_status{
 };
 
 
+struct app_redirect {
+    bool                    enabled;         /**< true → send redirect */
+    const char             *location;        /**< Location header value */
+    bool                    location_owned;  /**< true if location must be freed */
+    enum app_redirect_type  type;            /**< redirect semantics */
+};
+
+
 /**
  * @struct app_request
  * @brief Request forwarded to the application.
@@ -118,6 +128,7 @@ struct app_response{
     const void 			*payload;    	/**< Response payload (read-only; may be NULL). */
     size_t 				payload_len;    /**< Payload length in bytes (0 if none). */
 	bool 				payload_owned;  /**< true if framework should free(payload) after send. */
+	struct app_redirect redirect;
 };
 
 
@@ -139,6 +150,32 @@ struct app_response{
  * @return 0 on success; -1 on failure (e.g., NULL @p vfs or route registration error).
  */
 int app_init(struct fs *vfs);
+
+
+/**
+ * @brief Fill an app_response with a redirect.
+ *
+ * Sets @ref app_response::redirect.enabled=true and clears regular payload
+ * fields so the adapter can serialize a pure redirect (Location + 3xx).
+ *
+ * Semantics:
+ *  - The transport adapter should ignore @ref status, @ref media_type and
+ *    payload fields when @ref redirect.enabled is true.
+ *  - @p location can be either an absolute URL or an absolute path.
+ *
+ * Ownership:
+ *  - If @p location_owned is true, the adapter will free() the string
+ *    after sending the response.
+ *
+ * @param res             Response to fill (must not be NULL).
+ * @param location        Value for the Location header (must not be NULL).
+ * @param location_owned  Whether the adapter should free(location).
+ * @param type            Redirect semantics (maps to 301/302/307/308).
+ *
+ * @return 0 on success, -1 on invalid arguments.
+ */
+int app_make_redirect(struct app_response *res, const char *location, bool location_owned,
+					  enum app_redirect_type type);
 
 
 /**

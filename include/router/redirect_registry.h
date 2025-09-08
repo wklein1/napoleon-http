@@ -3,13 +3,8 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include "../redirect/redirect_types.h"
 
-enum app_redirect_type {
-    APP_REDIRECT_TEMPORARY,
-    APP_REDIRECT_PERMANENT,
-    APP_REDIRECT_TEMPORARY_PRESERVE,
-    APP_REDIRECT_PERMANENT_PRESERVE,
-};
 
 enum redirect_match_type {
     EXACT,

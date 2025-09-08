@@ -19,8 +19,8 @@
  *   and will be freed by the corresponding clear() routine.
  */
 struct http_header {
-    char *name;        /**< Header field name (e.g., "Content-Type"), null-terminated. */
-    char *value;       /**< Header field value (e.g., "text/plain"), null-terminated. */
+    const char *name;        /**< Header field name (e.g., "Content-Type"), null-terminated. */
+    const char *value;       /**< Header field value (e.g., "text/plain"), null-terminated. */
     bool name_owned;   /**< true if @ref name is heap-owned and should be freed.  */
 	bool value_owned;  /**< true if @ref value is heap-owned and should be freed. */
 };

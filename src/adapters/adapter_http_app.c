@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include "../../include/adapters/adapter_http_app.h"
@@ -96,6 +97,59 @@ static int app_status_to_http_status(enum app_status status){
 }
 
 
+static int app_redirect_to_http_code(enum app_redirect_type type){
+    switch (type){
+        case APP_REDIRECT_TEMPORARY:			return 302;
+        case APP_REDIRECT_PERMANENT:			return 301;
+        case APP_REDIRECT_TEMPORARY_PRESERVE:	return 307;
+        case APP_REDIRECT_PERMANENT_PRESERVE:	return 308;
+        default: 								return 302;
+    }
+}
+
+
+/**
+ * @brief Build a minimal HTTP redirect response (3xx + Location).
+ *
+ * Sets status to the HTTP code mapped from @p type, clears any body,
+ * and installs a single "Location" header. Ownership of the header value
+ * is controlled by @p location_owned and will be honored by http_response_clear().
+ *
+ * @param out              Response to fill (must not be NULL).
+ * @param type             App-level redirect type (maps to 301/302/307/308).
+ * @param location         Value for the Location header (must not be NULL).
+ * @param location_owned   If true, http_response_clear() will free(location).
+ *
+ * @return 0 on success; -1 on allocation failure or invalid args.
+ */
+static int http_response_make_redirect(struct http_response *res, enum app_redirect_type type,
+                                       const char *location, bool location_owned){
+
+    if (!res || !location) return -1;
+
+    res->status         = app_redirect_to_http_code(type);
+    res->content_type   = NULL;
+    res->body           = NULL;
+    res->content_length = 0;
+    res->body_owned     = false;
+
+    res->extra_headers = calloc(1,sizeof(*res->extra_headers));
+    if (!res->extra_headers) {
+        res->status = 500;
+        return -1;
+    }
+    res->extra_headers_count = 1;
+    res->extra_headers_owned = true;
+
+    res->extra_headers[0].name        = "Location";
+    res->extra_headers[0].name_owned  = false;
+    res->extra_headers[0].value       = location;
+    res->extra_headers[0].value_owned = location_owned;
+
+    return 0;
+}
+
+
 int adapter_http_app(const struct http_request *http_req, struct http_response *http_res_out, 
 					 void *adapter_context){
 
@@ -110,6 +164,12 @@ int adapter_http_app(const struct http_request *http_req, struct http_response *
 
     struct app_response app_res = {0};
     int app_ret = ((struct app_adapter_ctx*)adapter_context)->app_handler(&app_req, &app_res);
+	
+	if (app_res.redirect.enabled && app_res.redirect.location){
+
+        return http_response_make_redirect(http_res_out, app_res.redirect.type, app_res.redirect.location, 
+										  app_res.redirect.location_owned) < 0 ? -1 : app_ret;
+    }
 
 	http_res_out->status	   = app_status_to_http_status(app_res.status);
     http_res_out->content_type = media_to_http_content_type(app_res.media_type);
