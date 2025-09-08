@@ -3,6 +3,28 @@
 #include <string.h>
 #include "../../include/router/redirect_registry.h"
 
+
+/**
+ * @brief Locate an existing redirect rule with exact field equality.
+ *
+ * Performs a linear scan (O(N)) over @p registry->rules in the range
+ * [0, @p registry->rule_count). A rule is considered a match iff all
+ * fields compare equal:
+ *  - from == @p from_path (strcmp),
+ *  - to == @p to_location (strcmp),
+ *  - match_type == @p match_type,
+ *  - append_tail == @p append_tail,
+ *  - redirect_type == @p redirect_type.
+ *
+ * @param registry       Redirect registry (must not be NULL).
+ * @param from_path      Source path to match (NUL-terminated).
+ * @param to_location    Target location to match (NUL-terminated).
+ * @param match_type     Required match type (EXACT/PREFIX/SEGMENT_PREFIX).
+ * @param append_tail    Required tail-append flag.
+ * @param redirect_type  Required redirect semantics.
+ *
+ * @return Index (>= 0) of the first matching rule; -1 if not found.
+ */
 static ssize_t find_rule_index(const struct redirect_registry *registry, const char *from_path, const char *to_location, 
 				 enum redirect_match_type match_type, bool append_tail, enum app_redirect_type redirect_type){
 
@@ -19,13 +41,33 @@ static ssize_t find_rule_index(const struct redirect_registry *registry, const c
     return -1;
 }
 
+
+/**
+ * @brief Check a prefix match that respects a *segment boundary*.
+ *
+ * Returns true if @p path starts with @p prefix and the character
+ * immediately following the prefix is either the end of the string or
+ * a slash ('/'). This ensures that "/docs" matches "/docs" and "/docs/",
+ * and "/docs/index.html", but **not** "/docsify".
+ *
+ * @note This helper expects precomputed lengths for performance and
+ *       uses strncmp() over @p prefix_len bytes.
+ *
+ * @param path        Full path to test (NUL-terminated).
+ * @param path_len    Length of @p path in bytes (excluding NUL).
+ * @param prefix      Candidate prefix (NUL-terminated).
+ * @param prefix_len  Length of @p prefix in bytes (excluding NUL).
+ *
+ * @return true if the segment-boundary prefix condition holds; false otherwise.
+ */
 static bool path_matches_segment_prefix(const char *path, size_t path_len, const char *prefix, size_t prefix_len){
     if(path_len < prefix_len) return false;
 	if(strncmp(path, prefix, prefix_len) != 0) return false;
 	if (path_len == prefix_len) return true;
 	return path[prefix_len] == '/';
 }
- 
+
+
 void redirect_registry_init(struct redirect_registry *registry, struct redirect_rule *rules, bool rules_owned,
 							size_t capacity, size_t rule_count){
 	registry->rules = rules;
@@ -34,6 +76,7 @@ void redirect_registry_init(struct redirect_registry *registry, struct redirect_
 	registry->rule_count = rule_count;
 }
 
+
 void redirect_registry_clear(struct redirect_registry *registry){
  	if(registry->rules && registry->rules_owned) free(registry->rules);
 	registry->rules = NULL;
@@ -41,6 +84,7 @@ void redirect_registry_clear(struct redirect_registry *registry){
 	registry->capacity = 0;
 	registry->rule_count = 0;
 }
+
 
 int redirect_add(struct redirect_registry *registry, const char *from_path, const char *to_location, 
 				 enum redirect_match_type match_type, bool append_tail, enum app_redirect_type redirect_type){
@@ -67,6 +111,7 @@ int redirect_add(struct redirect_registry *registry, const char *from_path, cons
 
 	return 0;
 }
+
 
 int redirect_lookup(struct redirect_registry *registry, const char *path, struct redirect_result *result){
 	if(!registry || !path || !result) return -1;

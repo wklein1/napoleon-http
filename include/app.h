@@ -17,7 +17,16 @@
  *       completed sending the response.
  */
 
+
+/**
+ * @def MAX_REDIRECTS
+ * @brief Compile-time capacity for static redirect configuration.
+ *
+ * This value is used to size the application’s redirect rule table (e.g., a
+ * fixed-size array) and is passed into the redirect registry to set its capacity.
+ */
 #define MAX_REDIRECTS 5 
+
 
 /**
  * @brief Opaque virtual filesystem handle.
@@ -87,9 +96,22 @@ enum app_status{
 };
 
 
+
+/**
+ * @struct app_redirect
+ * @brief Optional redirect signaled by the application.
+ *
+ * If @ref enabled is true, the app indicates that the requested resource is located at
+ * @ref location with semantics given by @ref type. Callers that support redirects should
+ * emit a redirect instead of a regular payload; regular payload fields in
+ * @ref app_response should be ignored in that case.
+ *
+ * Ownership:
+ *  - If @ref location_owned is true, the caller must free(@ref location) after use.
+ */
 struct app_redirect {
-    bool                    enabled;         /**< true → send redirect */
-    const char             *location;        /**< Location header value */
+    bool                    enabled;         /**< true → send a redirect instead of a payload. */
+    const char             *location;        /**< Target location (absolute URL or absolute path). */
     bool                    location_owned;  /**< true if location must be freed */
     enum app_redirect_type  type;            /**< redirect semantics */
 };
@@ -128,7 +150,7 @@ struct app_response{
     const void 			*payload;    	/**< Response payload (read-only; may be NULL). */
     size_t 				payload_len;    /**< Payload length in bytes (0 if none). */
 	bool 				payload_owned;  /**< true if framework should free(payload) after send. */
-	struct app_redirect redirect;
+	struct app_redirect redirect;		/**< Optional redirect; takes precedence if enabled. */
 };
 
 
@@ -153,26 +175,20 @@ int app_init(struct fs *vfs);
 
 
 /**
- * @brief Fill an app_response with a redirect.
+ * @brief Fill an @ref app_response to signal a redirect.
  *
- * Sets @ref app_response::redirect.enabled=true and clears regular payload
- * fields so the adapter can serialize a pure redirect (Location + 3xx).
- *
- * Semantics:
- *  - The transport adapter should ignore @ref status, @ref media_type and
- *    payload fields when @ref redirect.enabled is true.
- *  - @p location can be either an absolute URL or an absolute path.
+ * Marks @ref app_response::redirect.enabled = true, stores @p location and @p type,
+ * and clears regular payload fields. Callers that support redirects should emit one.
  *
  * Ownership:
- *  - If @p location_owned is true, the adapter will free() the string
- *    after sending the response.
+ *  - If @p location_owned is true, the caller must free(@p location) after use.
  *
  * @param res             Response to fill (must not be NULL).
- * @param location        Value for the Location header (must not be NULL).
- * @param location_owned  Whether the adapter should free(location).
- * @param type            Redirect semantics (maps to 301/302/307/308).
+ * @param location        Target location for the redirect (must not be NULL).
+ * @param location_owned  Whether the caller should free(@p location).
+ * @param type            Redirect semantics (temporary/permanent, preserve method or not).
  *
- * @return 0 on success, -1 on invalid arguments.
+ * @return 0 on success; -1 on invalid arguments.
  */
 int app_make_redirect(struct app_response *res, const char *location, bool location_owned,
 					  enum app_redirect_type type);

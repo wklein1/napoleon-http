@@ -97,6 +97,21 @@ static int app_status_to_http_status(enum app_status status){
 }
 
 
+/**
+ * @brief Map app-level redirect semantics to an HTTP status code.
+ *
+ * This adapter-local helper translates @ref app_redirect_type to concrete
+ * HTTP response codes:
+ *  - APP_REDIRECT_PERMANENT            → 301
+ *  - APP_REDIRECT_TEMPORARY            → 302
+ *  - APP_REDIRECT_TEMPORARY_PRESERVE   → 307 (preserve method/body)
+ *  - APP_REDIRECT_PERMANENT_PRESERVE   → 308 (preserve method/body)
+ *
+ * Unknown values fall back to 302.
+ *
+ * @param type  Application redirect semantics to map.
+ * @return HTTP status code (301, 302, 307, or 308); 302 on unknown input.
+ */
 static int app_redirect_to_http_code(enum app_redirect_type type){
     switch (type){
         case APP_REDIRECT_TEMPORARY:			return 302;
@@ -115,7 +130,7 @@ static int app_redirect_to_http_code(enum app_redirect_type type){
  * and installs a single "Location" header. Ownership of the header value
  * is controlled by @p location_owned and will be honored by http_response_clear().
  *
- * @param out              Response to fill (must not be NULL).
+ * @param res              Response to fill (must not be NULL).
  * @param type             App-level redirect type (maps to 301/302/307/308).
  * @param location         Value for the Location header (must not be NULL).
  * @param location_owned   If true, http_response_clear() will free(location).
