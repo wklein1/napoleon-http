@@ -41,6 +41,28 @@ struct fs;
 
 
 /**
+ * @def MAX_STATIC_ROUTERS
+ * @brief Maximum number of static mounts (routers) the app will register.
+ */
+#define MAX_STATIC_ROUTERS 8
+
+
+/**
+ * @struct app_mount
+ * @brief Describes a static mount (URL prefix → VFS + directory defaults).
+ *
+ * Each mount instantiates one static-file router. Requests whose path begins
+ * with @ref prefix are served from @ref vfs, using @ref index_name for
+ * directory requests and honoring @ref max_bytes as a limit.
+ */
+struct app_mount {
+    const char *prefix;      /**< URL prefix, e.g. "/docs" */
+    struct fs  *vfs;         /**< Filesystem backing this mount; must outlive the app. */
+	const char *index_name;  /**< Directory default, e.g. "index.html" (NULL → "index.html"). */
+	size_t      max_bytes;   /**< Max file size to serve (bytes); 0 → no explicit limit. */
+};
+
+/**
  * @enum app_method
  * @brief Normalized operation verb.
  *
@@ -155,23 +177,24 @@ struct app_response{
 
 
 /**
- * @brief Initialize application state (routers, handlers) and bind a VFS.
+ * @brief Initialize application state (routers, handlers) from a mount array.
  *
- * Wires up the API router (e.g., “/api”) and the static-file router that
- * serves content from the provided virtual filesystem @p vfs. Call exactly
- * once during process startup, before any requests are handled.
+ * Registers API routes and creates one static-file router per entry in @p mounts.
+ * Intended to be called exactly once during process startup, before requests
+ * are handled. The function is idempotent: subsequent successful calls return 0
+ * and leave existing configuration intact.
  *
- * Semantics & constraints:
- *  - The function is **idempotent**: subsequent calls after a successful
- *    initialization return 0 and leave the existing configuration intact.
- *  - @p vfs is required and must outlive the application (no ownership
- *    transfer). The application stores the pointer for later use.
- *  - Not inherently thread-safe; invoke from a single thread during startup.
+ * Requirements:
+ *  - If @p mount_count > 0, @p mounts must be non-NULL.
+ *  - Each mount must provide a non-NULL @ref app_mount::prefix and @ref app_mount::vfs.
+ *  - @ref app_mount::index_name may be NULL to use "index.html".
+ *  - @p mount_count must be ≤ @ref MAX_STATIC_ROUTERS.
  *
- * @param vfs Virtual filesystem to be used by the static router (must not be NULL).
- * @return 0 on success; -1 on failure (e.g., NULL @p vfs or route registration error).
+ * @param mounts       Array of static mount descriptors (may be NULL if count == 0).
+ * @param mount_count  Number of entries in @p mounts.
+ * @return 0 on success; -1 on invalid arguments or setup failure.
  */
-int app_init(struct fs *vfs);
+int app_init(const struct app_mount *mounts, size_t mount_count);
 
 
 /**
@@ -197,18 +220,16 @@ int app_make_redirect(struct app_response *res, const char *location, bool locat
 /**
  * @brief Handle a single normalized request and produce a response.
  *
- * The function fills @p app_res_out:
- *  - Sets @ref app_response.status to indicate the outcome.
- *  - If a payload is returned, sets @ref app_response.media and
- *    @ref app_response.payload_len accordingly.
- *  - For @ref APP_NO_CONTENT, leaves @ref app_response.payload NULL
- *    and length 0.
+ * On return:
+ *  - If a redirect is requested (@ref app_response::redirect.enabled), callers
+ *    should emit a redirect.
+ *  - Otherwise, @ref status, @ref media_type, @ref payload and @ref payload_len
+ *    describe the response body (if any).
  *
  * @param app_req      [in]  Request data (must not be NULL).
  * @param app_res_out  [out] Response to be filled by the application (must not be NULL).
- * @return 0 on success (response in @p app_res_out is valid and can be sent);
- *         <0 on technical failure (e.g., allocation/logic error). The adapter/core
- *         may emit a generic error response in that case and ignore @p app_res_out.
+ * @return 0 on success (response in @p app_res_out is valid);
+ *         <0 on internal error (allocation/logic failure).
  */
 int app_handle_client(const struct app_request *app_req, struct app_response *app_res_out);
 

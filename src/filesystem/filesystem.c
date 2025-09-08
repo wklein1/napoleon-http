@@ -33,7 +33,6 @@ int fs_open(struct fs *vfs, const char *path, struct fs_file **file_out){
 }
 
 int fs_mkdir(struct fs *vfs, const char *path, bool recursive){
-	printf("inside mkdir\n");
     if (!vfs || !vfs->ops || !path) return FS_INVALID;
     if (!vfs->ops->mkdir)           return FS_NOT_SUPPORTED;
     return vfs->ops->mkdir(vfs, path, recursive);
