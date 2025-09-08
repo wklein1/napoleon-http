@@ -71,7 +71,7 @@ curl -i http://localhost:3001/docs
 
 # Static files
 curl -i http://localhost:3001/docs/
-curl -I http://localhost:3001/public/napoleon-cake.jpg
+curl -i http://localhost:3001/public/
 
 # API echo
 curl -i -X POST http://localhost:3001/api/echo -d 'hello from POST'
