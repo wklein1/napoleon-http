@@ -6,7 +6,7 @@ static const struct mime_type mime_map[] = {
     { "html", "text/html; charset=UTF-8" },
     { "json", "application/json; charset=UTF-8" },
 	{ "css",  "text/css; charset=UTF-8" },
-	{ "js",   "application/javascript; charset=UTF-8" },
+	{ "js",   "text/javascript; charset=UTF-8" },
 };
 
 const char* get_mime_type(const char* extension){

@@ -1,8 +1,8 @@
 (function initExamplePage(){
 
-  const backToDocsButton = document.getElementById("backToDocsButton");
-  if (backToDocsButton) {
-    backToDocsButton.addEventListener("click", () => {
+  const goToDocsButton = document.getElementById("goToDocsButton");
+  if (goToDocsButton) {
+    goToDocsButton.addEventListener("click", () => {
       window.location.href = "/docs/";
     });
   }

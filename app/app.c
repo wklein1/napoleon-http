@@ -41,9 +41,10 @@ int app_init(const struct app_mount *mounts, size_t mount_count){
 
     /* #### REDIRECTS #### */
     redirect_registry_init(&redirects, redirect_rules, false, MAX_REDIRECTS, 0);
-    if(redirect_add(&redirects, "/",		"/docs/", 	EXACT, false, APP_REDIRECT_PERMANENT)<0) return -1;
-    if(redirect_add(&redirects, "/docs", 	"/docs/", 	EXACT, false, APP_REDIRECT_PERMANENT)<0) return -1;
-    if(redirect_add(&redirects, "/public", "/public/",  EXACT, false, APP_REDIRECT_PERMANENT)<0) return -1;
+    if(redirect_add(&redirects, "/",		      "/docs/", 		EXACT, false, APP_REDIRECT_PERMANENT)<0) return -1;
+    if(redirect_add(&redirects, "/docs", 		  "/docs/", 		EXACT, false, APP_REDIRECT_PERMANENT)<0) return -1;
+    if(redirect_add(&redirects, "/docs/doxygen",  "/docs/doxygen/", EXACT, false, APP_REDIRECT_PERMANENT)<0) return -1;
+    if(redirect_add(&redirects, "/public", 		  "/public/",  		EXACT, false, APP_REDIRECT_PERMANENT)<0) return -1;
 
     app_inited = true;
     return 0;
