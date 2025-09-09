@@ -25,10 +25,17 @@ CFILES=$(foreach D, $(SRC_DIRS), $(wildcard $(D)/*.c))
 OBJECTS=$(patsubst %.c,$(OBJ_DIR)/%.o,$(CFILES))
 DEPFILES=$(patsubst %.c,$(DEP_DIR)/%.d,$(CFILES))
 
+DOXYGEN ?= doxygen
+DOXYFILE ?= doxygen.txt
+DOCS_OUT_DIR := docs/doxygen
+
 args ?=
 ARGS ?= $(args)
 
-.PHONY: all debug release clean run
+quiet ?= 1
+QUIET ?= $(quiet)
+
+.PHONY: all debug release clean run docs
 
 all: debug
 
@@ -40,11 +47,22 @@ release: BUILD_MODE=release
 release: CFLAGS += $(OPT_RELEASE)
 release: $(BIN)
 
+$(BIN): | docs
+
 clean: 
 	rm -rf $(BUILD_DIR)
+	rm -rf $(DOCS_OUT_DIR) 
 
 run: 
 	./$(BIN) $(ARGS)
+
+docs:
+	@echo "Generating Doxygen HTML into $(DOCS_OUT_DIR) (make quiet=0 to see cmd output)"
+ifeq ($(QUIET),1)
+	@$(DOXYGEN) $(DOXYFILE) > /dev/null 2>&1
+else
+	@$(DOXYGEN) $(DOXYFILE)
+endif
 
 $(BIN):$(OBJECTS)
 	@mkdir -p $(BIN_DIR)
