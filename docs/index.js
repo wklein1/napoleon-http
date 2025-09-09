@@ -96,6 +96,14 @@ export default function createDocsApp() {
           </div>
         </section>
       </main>
+      <footer class="site-footer">
+      <small class="muted">
+        © {{currentYear}} Witali Klein— Code licensed under <a href="/public/LICENSE.txt">MIT</a>.
+        Images may be under separate licenses (e.g. Pexels).
+        <span class="sep">·</span>
+        <a href="https://github.com/wklein1/napoleon-http">Source</a>
+      </small>
+    </footer>
     </div>
 
     `,
@@ -125,6 +133,8 @@ export default function createDocsApp() {
         document.documentElement.setAttribute("data-theme", isDark.value ? "dark" : "light");
         document.documentElement.style.colorScheme = isDark.value ? "dark" : "light";
       }
+
+      const currentYear = computed(()=>new Date().getFullYear())
 
       const filteredSections = computed(() => {
         const searchQuery = query.value.toLowerCase().trim();
@@ -248,6 +258,7 @@ export default function createDocsApp() {
         echoPostResponse,
         echoPostStatus,
         filteredSections,
+        currentYear,
         toggleTheme,
         copy,
         sendEchoGet,
