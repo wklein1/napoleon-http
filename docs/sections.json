@@ -1,0 +1,66 @@
+[
+  {
+    "id": "intro",
+    "title": "Welcome",
+    "subtitle": "Napoleon HTTP — a layered HTTP server in C",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "html": "🍰 <strong>Napoleon HTTP</strong> is a small, modular HTTP server written in C — inspired by the layered Napoleon cake. <br/> Each part of the server is a layer (transport, parser, routing, app) that can be swapped or extended."
+      },
+      {
+        "type": "list",
+        "items": [
+          "Redirects: simple registry (<code>/</code> → <code>/docs/</code>, <code>/docs</code> → <code>/docs/</code>)",
+          "Static mounts: <code>/docs</code> → <code>./docs</code>, <code>/public</code> → <code>./public</code>",
+          "Modular design: clear separation of layers, portable to POSIX and embedded targets (WIP)"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "build-run",
+    "title": "Build & Run",
+    "blocks": [
+      {
+        "type": "code",
+        "lang": "bash",
+        "caption": "Build (debug) & run on :3001",
+        "code": "make\nmake run\n# or\nmake run args=3001"
+      },
+      {
+        "type": "code",
+        "lang": "bash",
+        "caption": "Test redirects & static",
+        "code": "curl -i http://127.0.0.1:3001/\ncurl -i http://127.0.0.1:3001/docs\ncurl -i http://127.0.0.1:3001/docs/"
+      }
+    ]
+  },
+  {
+    "id": "echo",
+    "title": "API echo",
+    "blocks": [
+      {
+        "type": "code",
+        "lang": "bash",
+        "caption": "curl GET to /api/echo",
+        "code": "curl -i http://127.0.0.1:3001/api/echo "
+      },
+      {
+        "type": "echoGet"
+      },
+      {
+        "type": "hr"
+      },
+      {
+        "type": "code",
+        "lang": "bash",
+        "caption": "curl POST JSON to /api/echo",
+        "code": "curl -i -X POST http://127.0.0.1:3001/api/echo \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"hello\":\"world\"}'"
+      },
+      {
+        "type": "echoPost"
+      }
+    ]
+  }
+]

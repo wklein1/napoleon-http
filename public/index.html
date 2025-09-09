@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hello from /public</title>
+  <meta name="color-scheme" content="light dark" />
+  <link rel="stylesheet" href="/public/index.css" />
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Ctext x='64' y='64' text-anchor='middle' dominant-baseline='central' font-size='96'%3E🍰%3C/text%3E%3C/svg%3E"
+  />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__content">
+      <h1 class="page-title">Hello — this is an example page!</h1>
+      <div class="napoleon_cake_icon">🍰</div>
+      <p class="page-subtitle">
+        Served by <strong>napoleon-httpd</strong> from <code>/public/</code>.
+      </p>
+      <div class="actions">
+        <button id="goToDocsButton" type="button" class="button button--primary">
+          Go to docs
+        </button>
+        <noscript>
+          <a class="button" href="/docs/">Go to docs</a>
+        </noscript>
+      </div>
+    </div>
+  </header>
+
+  <main class="content-area">
+    <article class="intro-article">
+      <section class="intro-article__section">
+        <h2 class="section-title">What’s this?</h2>
+        <p class="section-text">
+          This page lives in your <code>/public</code> folder and is delivered by the C Napoleon-http server.
+          It’s a simple, static example you can tweak.
+        </p>
+      </section>
+
+      <section class="intro-article__section">
+        <h2 class="section-title">Napoleon cake (the pastry)</h2>
+        <p class="section-text">
+          “Napoleon” here refers to the layered pastry — puff pastry and custard —
+          popular across Eastern Europe.
+        </p>
+        <figure class="image-card">
+          <img
+            id="cakeImage"
+            class="image-card__img"
+            src="/public/napoleon-cake.jpg"
+            alt="Napoleon cake — layered puff pastry with custard"
+            decoding="async"
+          />
+          <figcaption class="image-card__caption">
+				    <a href="https://www.pexels.com/photo/delicious-layered-cake-with-strawberries-on-plate-33469324/"> Photo by Valeria Boltneva </a>
+		   </figcaption>
+		   <div id="cakePlaceholder" class="image-placeholder" aria-hidden="true" hidden>
+            <div class="image-placeholder__inner">
+              <div class="napoleon_cake_icon" aria-hidden="true">🍰</div>
+              <div class="image-placeholder__text">
+                Image placeholder — put <code>napoleon-cake.jpg</code> in <code>/public/</code>
+              </div>
+            </div>
+          </div>
+        </figure>
+      </section>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <small class="muted">
+      © <span id="currentYear"></span> Witali Klein— Code licensed under <a href="/public/LICENSE.txt">MIT</a>.
+      Images may be under separate licenses (e.g. Pexels).
+      <span class="sep">·</span>
+      <a href="https://github.com/wklein1/napoleon-http">Source</a>
+    </small>
+  </footer>
+
+  <script src="/public/index.js" defer></script>
+</body>
+</html>
