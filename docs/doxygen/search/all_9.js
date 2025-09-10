@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['headers_0',['headers',['../dc/d02/structhttp__request.html#a37e43ac65cc720289435c354fba2f902',1,'http_request']]],
+  ['host_1',['host',['../d7/d03/structserver__config.html#a8af076f1eebc5538e4318b61ff43d849',1,'server_config']]],
+  ['host_20in_20your_20code_20to_200_200_200_200_20and_20then_20visit_20tt_20http_3a_20your_20ip_20_3a_20port_20tt_2',['To test from other devices on your network, change the bind host in your code to &quot;0.0.0.0&quot; (and then visit &lt;tt&gt;http://\&lt;your-ip\&gt;:\&lt;port\&gt;/&lt;/tt&gt;).',['../d0/d00/md_README.html#autotoc_md9',1,'']]],
+  ['how_20a_20request_20flows_20through_20the_20server_20current_20design_3',['How a request flows through the server (current design)',['../d0/d00/md_README.html#autotoc_md10',1,'']]],
+  ['http_20or_20routing_20e_20g_20custom_20marshaling_20non_20tcp_20links_20tls_20wrappers_4',['* &lt;strong&gt;Pluggable layers (planned)&lt;/strong&gt;: Pluggable layers (planned): Swap transport/link, TLS, or the VFS via vtables—without touching HTTP or routing (e.g., custom marshaling, non-TCP links, TLS wrappers).',['../d0/d00/md_README.html#autotoc_md1',1,'']]],
+  ['http_20strong_20🍰_5',['&lt;strong&gt;napoleon-http&lt;/strong&gt; 🍰',['../d0/d00/md_README.html',1,'']]],
+  ['http_3a_20your_20ip_20_3a_20port_20tt_6',['To test from other devices on your network, change the bind host in your code to &quot;0.0.0.0&quot; (and then visit &lt;tt&gt;http://\&lt;your-ip\&gt;:\&lt;port\&gt;/&lt;/tt&gt;).',['../d0/d00/md_README.html#autotoc_md9',1,'']]],
+  ['http_5fcore_5fctx_7',['http_core_ctx',['../d7/d01/structhttp__core__ctx.html',1,'']]],
+  ['http_5fheader_8',['http_header',['../d4/d03/structhttp__header.html',1,'']]],
+  ['http_5fmax_5fbody_5fbuffer_9',['HTTP_MAX_BODY_BUFFER',['../d2/d00/http__request_8h.html#aedbbacf16b9e2f3411096b9f98faa73c',1,'http_request.h']]],
+  ['http_5fmax_5fheader_5fvalue_10',['HTTP_MAX_HEADER_VALUE',['../d2/d00/http__request_8h.html#abc13ac4a1468b804264d6d5669782805',1,'http_request.h']]],
+  ['http_5fmax_5fheaders_11',['HTTP_MAX_HEADERS',['../d2/d00/http__request_8h.html#ae25acc386a279de3461e5881633c1402',1,'http_request.h']]],
+  ['http_5fmax_5fheaders_5fbuffer_12',['HTTP_MAX_HEADERS_BUFFER',['../d2/d00/http__request_8h.html#a8c7f8854f797db42d54bd6635e84c088',1,'http_request.h']]],
+  ['http_5fmax_5fmethod_13',['HTTP_MAX_METHOD',['../d2/d00/http__request_8h.html#a8b29b161596ca3e7f8653f14afc14bf8',1,'http_request.h']]],
+  ['http_5fmax_5fpath_14',['HTTP_MAX_PATH',['../d2/d00/http__request_8h.html#a41c0647e91977bd346fd7d205cd6cff9',1,'http_request.h']]],
+  ['http_5fmax_5fversion_15',['HTTP_MAX_VERSION',['../d2/d00/http__request_8h.html#ad705e40c98a3aebf01b93f580ffe580e',1,'http_request.h']]],
+  ['http_5frequest_16',['http_request',['../dc/d02/structhttp__request.html',1,'']]],
+  ['http_5frequest_2eh_17',['http_request.h',['../d2/d00/http__request_8h.html',1,'']]],
+  ['http_5frequest_5fclear_18',['http_request_clear',['../d2/d00/http__request_8h.html#ad028a52da8379e31085578a39b82a633',1,'http_request.c']]],
+  ['http_5frequest_5fget_5fheader_5fvalue_19',['http_request_get_header_value',['../d2/d00/http__request_8h.html#a99089a2b39096ab3a3ed811001ea4afc',1,'http_request.c']]],
+  ['http_5frequest_5finit_20',['http_request_init',['../d2/d00/http__request_8h.html#af91a4be96142e1d8d31d6bbe45ae116d',1,'http_request.c']]],
+  ['http_5fresponse_21',['http_response',['../d9/d01/structhttp__response.html',1,'']]]
+];

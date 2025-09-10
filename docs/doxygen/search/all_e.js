@@ -1,0 +1,10 @@
+var searchData=
+[
+  ['on_20your_20network_20change_20the_20bind_20host_20in_20your_20code_20to_200_200_200_200_20and_20then_20visit_20tt_20http_3a_20your_20ip_20_3a_20port_20tt_0',['To test from other devices on your network, change the bind host in your code to &quot;0.0.0.0&quot; (and then visit &lt;tt&gt;http://\&lt;your-ip\&gt;:\&lt;port\&gt;/&lt;/tt&gt;).',['../d0/d00/md_README.html#autotoc_md9',1,'']]],
+  ['open_1',['open',['../d8/d03/structfs__ops.html#ae294297239b53cc98478eb313af48922',1,'fs_ops']]],
+  ['open_20in_20your_20browser_2',['Run the server &amp; open in your browser',['../d0/d00/md_README.html#autotoc_md8',1,'']]],
+  ['ops_3',['ops',['../d2/d00/structfs__file.html#a55ba29f146fcf0892a41927e5e91b865',1,'fs_file::ops'],['../de/d02/structfs.html#a2d4a239d60c044c07d96c19562226e21',1,'fs::ops']]],
+  ['or_20routing_20e_20g_20custom_20marshaling_20non_20tcp_20links_20tls_20wrappers_4',['* &lt;strong&gt;Pluggable layers (planned)&lt;/strong&gt;: Pluggable layers (planned): Swap transport/link, TLS, or the VFS via vtables—without touching HTTP or routing (e.g., custom marshaling, non-TCP links, TLS wrappers).',['../d0/d00/md_README.html#autotoc_md1',1,'']]],
+  ['or_20the_20vfs_20via_20vtables—without_20touching_20http_20or_20routing_20e_20g_20custom_20marshaling_20non_20tcp_20links_20tls_20wrappers_5',['* &lt;strong&gt;Pluggable layers (planned)&lt;/strong&gt;: Pluggable layers (planned): Swap transport/link, TLS, or the VFS via vtables—without touching HTTP or routing (e.g., custom marshaling, non-TCP links, TLS wrappers).',['../d0/d00/md_README.html#autotoc_md1',1,'']]],
+  ['other_20devices_20on_20your_20network_20change_20the_20bind_20host_20in_20your_20code_20to_200_200_200_200_20and_20then_20visit_20tt_20http_3a_20your_20ip_20_3a_20port_20tt_6',['To test from other devices on your network, change the bind host in your code to &quot;0.0.0.0&quot; (and then visit &lt;tt&gt;http://\&lt;your-ip\&gt;:\&lt;port\&gt;/&lt;/tt&gt;).',['../d0/d00/md_README.html#autotoc_md9',1,'']]]
+];
