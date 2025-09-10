@@ -22,14 +22,14 @@ Core features
 * **Pluggable layers (planned)**: Pluggable layers (planned): Swap transport/link, TLS, or the VFS via vtables—without touching HTTP or routing (e.g., custom marshaling, non-TCP links, TLS wrappers). 
 ---
 
-### SUPPORTED PLATFORMS
+### Supported platforms
 * Linux (x86_64 / arm64)
 * macOS (Intel & Apple Silicon)
 * Windows: WIP
 
 ---
 
-### BUILD & RUN (MAKE)
+### Build & run (make)
 
 The repo uses a plain **Makefile** (no CMake).
 
