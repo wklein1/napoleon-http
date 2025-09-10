@@ -35,7 +35,7 @@ ARGS ?= $(args)
 quiet ?= 1
 QUIET ?= $(quiet)
 
-.PHONY: all debug release clean run docs
+.PHONY: all debug release clean run docs clean-docs
 
 all: debug
 
@@ -47,11 +47,9 @@ release: BUILD_MODE=release
 release: CFLAGS += $(OPT_RELEASE)
 release: $(BIN)
 
-$(BIN): | docs
 
 clean: 
 	rm -rf $(BUILD_DIR)
-	rm -rf $(DOCS_OUT_DIR) 
 
 run: 
 	./$(BIN) $(ARGS)
@@ -63,6 +61,9 @@ ifeq ($(QUIET),1)
 else
 	@$(DOXYGEN) $(DOXYFILE)
 endif
+
+clean-docs:
+	rm -rf $(DOCS_OUT_DIR) 
 
 $(BIN):$(OBJECTS)
 	@mkdir -p $(BIN_DIR)

@@ -1,0 +1,6 @@
+var searchData=
+[
+  ['_3a_20pluggable_20layers_20planned_20_3a_20swap_20transport_20link_20tls_20or_20the_20vfs_20via_20vtables—without_20touching_20http_20or_20routing_20e_20g_20custom_20marshaling_20non_20tcp_20links_20tls_20wrappers_0',['* &lt;strong&gt;Pluggable layers (planned)&lt;/strong&gt;: Pluggable layers (planned): Swap transport/link, TLS, or the VFS via vtables—without touching HTTP or routing (e.g., custom marshaling, non-TCP links, TLS wrappers).',['../d0/d00/md_README.html#autotoc_md1',1,'']]],
+  ['_3a_20port_20tt_1',['To test from other devices on your network, change the bind host in your code to &quot;0.0.0.0&quot; (and then visit &lt;tt&gt;http://\&lt;your-ip\&gt;:\&lt;port\&gt;/&lt;/tt&gt;).',['../d0/d00/md_README.html#autotoc_md9',1,'']]],
+  ['_3a_20swap_20transport_20link_20tls_20or_20the_20vfs_20via_20vtables—without_20touching_20http_20or_20routing_20e_20g_20custom_20marshaling_20non_20tcp_20links_20tls_20wrappers_2',['* &lt;strong&gt;Pluggable layers (planned)&lt;/strong&gt;: Pluggable layers (planned): Swap transport/link, TLS, or the VFS via vtables—without touching HTTP or routing (e.g., custom marshaling, non-TCP links, TLS wrappers).',['../d0/d00/md_README.html#autotoc_md1',1,'']]]
+];
