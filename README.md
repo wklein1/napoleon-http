@@ -22,6 +22,13 @@ Core features
 * **Pluggable layers (planned)**: Pluggable layers (planned): Swap transport/link, TLS, or the VFS via vtables—without touching HTTP or routing (e.g., custom marshaling, non-TCP links, TLS wrappers). 
 ---
 
+### SUPPORTED PLATFORMS
+* Linux (x86_64 / arm64)
+* macOS (Intel & Apple Silicon)
+* Windows: WIP
+
+---
+
 ### BUILD & RUN (MAKE)
 
 The repo uses a plain **Makefile** (no CMake).
@@ -35,7 +42,7 @@ Or build release:
 
 ```make release```
 
-Remove all generated files:
+Remove all generated build files:
 
 ```make clean```
 
@@ -95,6 +102,29 @@ curl -i -X POST http://localhost:3001/api/echo -d 'hello from POST'
    > **Note:**
    > The server binds to 127.0.0.1 (loopback) by default. You can only access it from the same machine.
    > To test from other devices on your network, change the bind host in your code to "0.0.0.0" (and then visit ```http://<your-ip>:<port>/```).
+---
+### Documentation
+
+**Project docs site**  
+- Served at `/docs/` when the server is running  
+- Sources: `./docs/`  
+- Open: `http://localhost:3001/docs/` (or your chosen port)
+
+**Generated API docs (Doxygen)**
+- Served at `/docs/doxygen/` 
+- Prebuilt HTML lives in `./docs/doxygen/`  
+- Open: `http://localhost:3001/docs/doxygen/`
+
+**Regenerate API docs (requires Doxygen)**  
+```bash
+make docs
+```
+
+**Remove all generated doxygen files**
+```bash
+make clean-docs
+```
+
 ---
 ### How a request flows through the server (current design)
 
