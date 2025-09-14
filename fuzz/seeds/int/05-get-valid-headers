@@ -1,0 +1,5 @@
+GET /path HTTP/1.1
+Host: example
+User-Agent: fuzz
+Accept: */*
+

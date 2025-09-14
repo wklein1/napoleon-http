@@ -57,3 +57,5 @@ dkms.conf
 
 #directories
 build
+fuzz/build
+fuzz/out
