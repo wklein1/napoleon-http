@@ -19,7 +19,7 @@ This folder contains fuzzing harnesses and a Makefile for fuzzing different laye
 
 ###  Harnesses
 
-We provide three fuzzing harnesses:
+ Three fuzzing harnesses provided:
 
 - **Unit harness (`unit_parse_harness`)**  
   Focuses on parsing HTTP request lines and headers.
