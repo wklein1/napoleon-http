@@ -36,7 +36,7 @@ Each harness is compiled with AFL++ instrumentation and can also run with CmpLog
 
 ###  Build
 
-The Makefile is configured to run inside the official AFL++ Docker image.  
+The Makefile is configured to use the official AFL++ Docker image.  
 All build artifacts (incl. binaries) will appear under `fuzz/build/`.
 
 To build all harnesses (unit, integration, e2e):
