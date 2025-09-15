@@ -21,9 +21,9 @@ DEPFLAGS := -MMD -MP
 
 CC_CMD = $(CC) $(CFLAGS) $(foreach D, $(INCLUDE_DIRS), -I$(D))
 
-CFILES := $(foreach D, $(SRC_DIRS), $(wildcard $(D)/*.c))
-OBJECTS =$ (patsubst %.c,$(OBJ_DIR)/%.o,$(CFILES))
-DEPFILES =$ (patsubst %.c,$(DEP_DIR)/%.d,$(CFILES))
+CFILES   := $(foreach D, $(SRC_DIRS), $(wildcard $(D)/*.c))
+OBJECTS  := $(patsubst %.c,$(OBJ_DIR)/%.o,$(CFILES))
+DEPFILES := $(patsubst %.c,$(DEP_DIR)/%.d,$(CFILES))
 
 DOXYGEN ?= doxygen
 DOXYFILE ?= doxygen.txt

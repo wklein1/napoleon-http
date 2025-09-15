@@ -1,0 +1,4 @@
+GET /api/echo?msg=hi&n=1 HTTP/1.1
+Host: a
+Accept: application/json
+
