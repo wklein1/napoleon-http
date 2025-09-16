@@ -21,13 +21,18 @@ UNIT_HARNESS_SRC := harness/unit_parse_harness.c
 INT_HARNESS_SRC  := harness/int_parse_harness.c
 E2E_HARNESS_SRC  := harness/e2e_server_harness.c
 
-CC := afl-clang-fast
-CFLAGS := -Wall -Wextra -O1 -g -fno-omit-frame-pointer
+CC := afl-cc --afl-llvm
+CFLAGS ?= -Wall -Wextra -O1 -g -fno-omit-frame-pointer
+CFLAGS_CMPLOG ?= -O3 -g0
 DEPFLAGS := -MMD -MP
+
+AFL_ENVS 		?= AFL_USE_ASAN=1 AFL_USE_UBSAN=1
+AFL_ENVS_CMPLOG ?= AFL_LLVM_CMPLOG=1 AFL_USE_ASAN=0 AFL_USE_UBSAN=0
+
 INCLUDES := $(foreach D,$(INCLUDE_DIRS),-I$(D))
 
 CFILES_ALL := $(foreach D,$(SRC_DIRS),$(wildcard $(D)/*.c))
-CFILES := $(filter-out $(ROOT)/src/main.c,$(CFILES_ALL))
+CFILES     := $(filter-out $(ROOT)/src/main.c,$(CFILES_ALL))
 
 OBJECTS  := $(patsubst $(ROOT)/%.c,$(OBJ_DIR)/%.o,$(CFILES))
 DEPFILES := $(patsubst $(ROOT)/%.c,$(DEP_DIR)/%.d,$(CFILES))
@@ -83,13 +88,13 @@ all: build-parse-unit build-parse-int build-server-e2e
 
 $(OBJ_DIR)/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@) $(dir $(DEP_DIR)/$*)
-	$(CC) $(CFLAGS) $(EXTRA_FLAGS) $(INCLUDES) \
+	$(CC) $(CFLAGS) $(INCLUDES) \
 	$(DEPFLAGS) -MF $(patsubst $(ROOT)/%.c,$(DEP_DIR)/%.d,$<) \
 	-c $< -o $@
 
 $(OBJ_DIR)/harness/%.o: harness/%.c
 	@mkdir -p $(dir $@) $(dir $(patsubst $(OBJ_DIR)/%.o,$(DEP_DIR)/%.d,$@))
-	$(CC) $(CFLAGS) $(EXTRA_FLAGS) $(INCLUDES) \
+	$(CC) $(CFLAGS) $(INCLUDES) \
 	$(DEPFLAGS) -MF $(patsubst $(OBJ_DIR)/%.o,$(DEP_DIR)/%.d,$@) \
 	  -c $< -o $@
 
@@ -112,18 +117,18 @@ clean:
 
 build-parse-unit:
 	$(DOCKER_RUN) bash -lc '\
-	  CC=afl-clang-fast EXTRA_FLAGS="-fsanitize=address,undefined" \
-	  make -f Makefile internal-build-parse-unit '
+	$(AFL_ENVS) \
+	make -f Makefile internal-build-parse-unit '
 
 build-parse-int:
 	$(DOCKER_RUN) bash -lc '\
-	  CC=afl-clang-fast EXTRA_FLAGS="-fsanitize=address,undefined" \
-	  make -f Makefile internal-build-parse-integration '
+	$(AFL_ENVS) \
+	make -f Makefile internal-build-parse-integration '
 
 build-server-e2e:
 	$(DOCKER_RUN) bash -lc '\
-	  CC=afl-clang-fast EXTRA_FLAGS="-fsanitize=address,undefined" \
-	  make -f Makefile internal-build-parse-end-to-end '
+	$(AFL_ENVS) \
+	make -f Makefile internal-build-parse-end-to-end '
 
 internal-build-parse-unit: $(UNIT_BIN)
 internal-build-parse-integration: $(INT_BIN)
@@ -152,7 +157,7 @@ E2E_BIN_CMPLOG  ?= $(E2E_BIN)$(CMPLOG_SUFFIX)
 
 run-parse-unit-cmplog: build-parse-unit
 	$(DOCKER_RUN) bash -lc '\
-	    AFL_LLVM_ONLY_FSRV=1 AFL_LLVM_CMPLOG=1 EXTRA_FLAGS="" MODE=cmplog\
+	    $(AFL_ENVS_CMPLOG)  CFLAGS="$(CFLAGS_CMPLOG)" MODE=cmplog\
 		make -f Makefile internal-build-parse-unit UNIT_BIN=build/unit_parse_harness_cmplog && \
 		afl-fuzz -i $(SEEDS_UNIT) -o $(OUT_UNIT) -m none -t $(TIMEOUT) -x $(DICT) \
 	    -c ./$(UNIT_BIN_CMPLOG) -- ./$(UNIT_BIN)'
@@ -160,7 +165,7 @@ run-parse-unit-cmplog: build-parse-unit
 
 run-parse-int-cmplog: build-parse-int
 	$(DOCKER_RUN) bash -lc '\
-	    AFL_LLVM_ONLY_FSRV=1 AFL_LLVM_CMPLOG=1 EXTRA_FLAGS="" MODE=cmplog\
+	    $(AFL_ENVS_CMPLOG) CFLAGS="$(CFLAGS_CMPLOG)" MODE=cmplog\
 	    make -f Makefile internal-build-parse-integration INT_BIN=build/int_parse_harness_cmplog && \
 	    afl-fuzz -i $(SEEDS_INT) -o $(OUT_INT) -m none -t $(TIMEOUT) -x $(DICT) \
 	    -c ./$(INT_BIN_CMPLOG) -- ./$(INT_BIN)'
@@ -168,7 +173,7 @@ run-parse-int-cmplog: build-parse-int
 
 run-server-e2e-cmplog: build-server-e2e
 	$(DOCKER_RUN) bash -lc '\
-	    AFL_LLVM_ONLY_FSRV=1 AFL_LLVM_CMPLOG=1 EXTRA_FLAGS="" MODE=cmplog\
+	    $(AFL_ENVS_CMPLOG) CFLAGS="$(CFLAGS_CMPLOG)" MODE=cmplog\
 	    make -f Makefile internal-build-parse-end-to-end E2E_BIN=build/e2e_server_harness_cmplog && \
 	    afl-fuzz -i $(SEEDS_E2E) -o $(OUT_E2E) -m none -t $(TIMEOUT) -x $(DICT) \
 	    -c ./$(E2E_BIN_CMPLOG) -- ./$(E2E_BIN)'
