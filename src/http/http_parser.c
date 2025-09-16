@@ -181,9 +181,9 @@ int read_body(int fd, char **buffer, size_t buffer_len, size_t headers_end,
 				   : 0;
 
 	if(DEBUG_OUT){
-		printf("~~~~~~~~~~~~~~~~~~~~~\n");
-		printf("%s\n",*buffer);
-		printf("~~~~~~~~~~~~~~~~~~~~~\n");
+		//printf("~~~~~~~~~~~~~~~~~~~~~\n");
+		//printf("%s\n",*buffer);
+		//printf("~~~~~~~~~~~~~~~~~~~~~\n");
 
 		printf("buff_len: %zu\n", buffer_len);
 		printf("headers_end: %zu\n", headers_end);
@@ -331,7 +331,8 @@ int http_parse_request(int fd, void **buffer, size_t buffer_len, struct http_req
 	size_t new_buff_len = 0;
 	int headers_dropped = 0;
 	
-	printf("\n############ Parse request ############\n");
+	if(DEBUG_OUT)
+		printf("\n############ Parse request ############\n");
 
 	int headers_end = read_until_double_crlf(fd, buffer, buffer_len, headers_max, &new_buff_len, &total_read);
 	if(headers_end == -1){
@@ -346,9 +347,11 @@ int http_parse_request(int fd, void **buffer, size_t buffer_len, struct http_req
 	}
 
 
-	printf("Method: %s\n", req->method);
-	printf("Path: %s\n", req->path);
-	printf("Version: %s\n", req->version);
+	if(DEBUG_OUT){
+		printf("Method: %s\n", req->method);
+		printf("Path: %s\n", req->path);
+		printf("Version: %s\n", req->version);
+	}
 
 	int headers_parsed = http_parse_request_headers(*buffer+req_line_end, total_read-req_line_end, 
 												  &headers_dropped, req);
@@ -356,7 +359,9 @@ int http_parse_request(int fd, void **buffer, size_t buffer_len, struct http_req
 		fprintf(stderr, "error parsing request headers\n");
 		return -1;
 	}
-	printf("\nheaders parsed: %zu, headers dropped: %d\n\n",req->num_headers,headers_dropped);
+
+	if(DEBUG_OUT)
+		printf("\nheaders parsed: %zu, headers dropped: %d\n\n",req->num_headers,headers_dropped);
 
 	size_t content_len = 0;
 	char content_len_header_name[] = "Content-Length";
@@ -368,7 +373,8 @@ int http_parse_request(int fd, void **buffer, size_t buffer_len, struct http_req
 	}
 
 	if(content_len == 0){
-		printf("########## Parse request END ##########\n\n");
+		if(DEBUG_OUT)
+			printf("########## Parse request END ##########\n\n");
 		return 0;
 	}
 
@@ -379,9 +385,10 @@ int http_parse_request(int fd, void **buffer, size_t buffer_len, struct http_req
 		return -1;
 	}
 
-	printf("\nBody: %s\n", req->body);
-	
-	printf("########## Parse request END ##########\n\n");
+	if(DEBUG_OUT){
+		printf("\nBody: %s\n", req->body);
+		printf("########## Parse request END ##########\n\n");
+	}
 
 	return 0;
 }
