@@ -16,7 +16,7 @@ RECURSIVE="${RECURSIVE:-0}"            # 0/1
 KEEP_LAYOUT="${KEEP_LAYOUT:-0}"        # 0/1
 OVERWRITE="${OVERWRITE:-0}"            # 0/1
 VERBOSE="${VERBOSE:-0}"                # 0/1
-DEBUG_LOG="${DEBUG_LOG:-}"             # 0/1
+DEBUG_LOG="${DEBUG_LOG:-0}"            # 0/1
 
 DOCKER_TIMEOUT="${DOCKER_TIMEOUT:-20s}"
 IMAGE="${IMAGE:-aflplusplus/aflplusplus}"
@@ -29,6 +29,7 @@ asan_ops=()
 ubsan_ops=()
 
 STAGE1_LOG="${STAGE1_LOG-}"
+LOG_FILE=""
 OUT_BASE="${OUT_BASE-}" 
 ENV_FILE="${ENV_FILE:-}"
 
@@ -40,15 +41,15 @@ SEP=$'\x1f'
 
 if [[ -t 2 && -z ${NO_COLOR:-} ]]; then
   C_RESET=$'\033[0m'
-  C_ERROR=$'\033[31m'
-  C_WARN=$'\033[33m'
-  C_INFO=$'\033[32m'
+  C_ERROR=$'\033[38;5;160m'
+  C_WARN=$'\033[38;5;208m'
+  C_INFO=$'\033[2;32m'
 else
   C_RESET='' C_ERROR='' C_WARN='' C_INFO=''
 fi
 
 debug_log_key_value(){
-  (( DEBUG_LOG )) || return 0
+  if (( DEBUG_LOG == 0 )); then return 0; fi
   local section="$1"; shift
   printf '[%s] %s' "$(date +%H:%M:%S)" "$section" >> "$LOG_FILE"
   local key_value
@@ -56,65 +57,51 @@ debug_log_key_value(){
   printf '\n' >> "$LOG_FILE"
 }
 
-
 log_to_file(){
   [[ -n "$2" ]] || return 0
   printf "[%s] %s\n" "$(date +%H:%M:%S)" "$1" >> "$2"
 }
 
-LOG_INFO(){
-  local msg; msg="$(printf "$1" "${@:2}")"
-  (( VERBOSE )) && printf "%s[INFO]%s  %s\n"  "$C_INFO" "$C_RESET" "$msg" >&2
-  (( DEBUG_LOG )) && log_to_file "[INFO]  $msg" "$LOG_FILE"
-}
-LOG_WARN(){
-  local msg; msg="$(printf "$1" "${@:2}")"
-  printf "%s[WARN]%s  %s\n"  "$C_WARN" "$C_RESET" "$msg" >&2
-  (( DEBUG_LOG )) && log_to_file "[WARN]  $msg" "$LOG_FILE"
-}
-LOG_ERROR(){
-  local msg; msg="$(printf "$1" "${@:2}")" 
-  printf "%s[ERROR]%s %s\n" "$C_ERROR" "$C_RESET" "$msg" >&2
-  (( DEBUG_LOG )) && log_to_file "[ERROR] $msg" "$LOG_FILE"
+modulate_log(){
+  local fd="$1" color="$2" prefix="$3" ensure_nl="$4"; shift 4
+  local format message nl=""
+
+   if (( $# )); then
+      format=$1; shift
+      printf -v message -- "$format" "$@"
+    else
+      message=$format
+    fi
+
+  while [[ $message == *$'\n' ]]; do
+    message=${message%$'\n'}
+    nl+=$'\n'
+  done
+
+  if (( ensure_nl )) && [[ $nl != *$'\n' ]]; then
+    nl+=$'\n'
+  fi
+
+  printf '%s%s%s%s%s' "$color" "$prefix" "$message" "$C_RESET" "$nl" >&"$fd"
+
+  if (( DEBUG_LOG )) && [[ -n ${LOG_FILE:-} ]]; then
+    log_to_file "${prefix}${message}" "$LOG_FILE"
+  fi
 }
 
-LOG_INFO_PLAIN()  {
-  local msg; msg="$(printf "$1" "${@:2}")"
-  (( VERBOSE )) && printf "%s%s%s\n" "$C_INFO" "$msg" "$C_RESET" >&2
-  (( DEBUG_LOG )) && log_to_file "$msg" "$LOG_FILE"
-}
-LOG_WARN_PLAIN(){
-  local msg; msg="$(printf "$1" "${@:2}")"
-  printf "%s%s%s\n" "$C_WARN" "$msg" "$C_RESET" >&2
-  (( DEBUG_LOG )) && log_to_file "$msg" "$LOG_FILE"
-}
-LOG_ERROR_PLAIN(){
-  local msg; msg="$(printf "$1" "${@:2}")"
-  printf "%s%s%s\n" "$C_ERROR" "$msg" "$C_RESET" >&2
-  (( DEBUG_LOG )) && log_to_file "$msg" "$LOG_FILE"
-}
+LOG_INFO()  { (( VERBOSE )) && modulate_log 2 "$C_INFO"  "[INFO]  " 1 "$@"; }
+LOG_WARN()  { modulate_log 2 "$C_WARN"  "[WARN]  " 1 "$@"; }
+LOG_ERROR() { modulate_log 2 "$C_ERROR" "[ERROR] " 1 "$@"; }
 
-LOG_ERROR_PLAIN_INLINE(){
-  local msg; msg="$(printf "$1" "${@:2}")"
-  (( VERBOSE )) && printf "%s%s%s" "$C_ERROR" "$msg" "$C_RESET" >&2
-  (( DEBUG_LOG )) && log_to_file "$msg" "$LOG_FILE"
-}
-LOG_INFO_PLAIN_INLINE(){
-  local msg; msg="$(printf "$1" "${@:2}")"
-  printf "%s%s%s" "$C_INFO"  "$msg" "$C_RESET" >&2
-  (( DEBUG_LOG )) && log_to_file "$msg" "$LOG_FILE"
-}
-LOG_WARN_PLAIN_INLINE(){
-  local msg; msg="$(printf "$1" "${@:2}")"
-  printf "%s%s%s" "$C_WARN"  "$msg" "$C_RESET" >&2
-  (( DEBUG_LOG )) && log_to_file "$msg" "$LOG_FILE"
-}
+LOG_INFO_PLAIN()  { (( VERBOSE )) && modulate_log 2 "$C_INFO"  "" 1 "$@"; }
+LOG_WARN_PLAIN()  { modulate_log 2 "$C_WARN"  "" 1 "$@"; }
+LOG_ERROR_PLAIN() { modulate_log 2 "$C_ERROR" "" 1 "$@"; }
 
-LOG_DEFAULT(){
-  local msg; msg="$(printf "$1" "${@:2}")"
-  printf "%s%s" "$msg" "$C_RESET" >&2
-  (( DEBUG_LOG )) && log_to_file "$msg" "$LOG_FILE"
-}
+LOG_INFO_PLAIN_INLINE()  { modulate_log 2 "$C_INFO"  "" 0 "$@"; }
+LOG_WARN_PLAIN_INLINE()  { modulate_log 2 "$C_WARN"  "" 0 "$@"; }
+LOG_ERROR_PLAIN_INLINE() { modulate_log 2 "$C_ERROR" "" 0 "$@"; }
+
+LOG_DEFAULT()           { modulate_log 2 "" "" 0 "$@"; }
 
 #-----------------------------------------------------------
 #                      Env-file loader
@@ -174,7 +161,8 @@ fi
 #-----------------------------------------------------------
 
 show_help(){
-  cat <<'EOF'
+ cat <<'EOF'
+
 Usage
   triage2.sh -m stack|coverage|combined [options] <crash_dir> <binary>
 
@@ -189,6 +177,7 @@ Precedence & configuration
     2) Environment variable (middle)
     3) Built-in default (lowest)
   Example: THRESHOLD=95 ./triage2.sh -m coverage ./crashes ./binary
+  You can also preload env via ENV_FILE=/path/to/.env
 
 Positional arguments
   <crash_dir>   Directory with crash inputs (files).
@@ -200,12 +189,12 @@ Positional arguments
                              If omitted, stacks are reproduced in one container run.
   -r, --recursive            Recurse into <crash_dir>.
 
-  Env: STAGE1_LOG (default: unset)
+  Env: STAGE1_LOG (default: unset), RECURSIVE
 
 ──────────────────────────── Output & placement
 
   -o, --output <dir>         Output directory.
-  -k, --keep-layout          Keep relative directory layout (only effective with -r).
+  -k, --keep, --keep-layout  Keep relative directory layout (only effective with -r).
   -l, --link-method <mode>   Place files by: hard | sym | copy (default: hard; falls back to copy)
   -O, --overwrite-existing   Allow overwriting existing files in output dirs.
                                 
@@ -215,7 +204,7 @@ Positional arguments
       - otherwise:        <crash_dir>/dedup
 
     If --overwrite-existing is omitted:
-      existing files files get suffix "(1)", "(2)" etc.
+      existing files get suffix "(1)", "(2)" etc.
 
   Env: OUT_BASE, KEEP_LAYOUT, LINK_METHOD, OVERWRITE
 
@@ -224,8 +213,8 @@ Positional arguments
   -m, --mode <mode>          stack | coverage | combined   (required)
   -f, --frames <n>           frames to include in stack signature (>=1, default: 3)
   -n, --include-lines        Include source line numbers in stack signature
-  -t, --coverage-threshold <pct>
-                             Coverage similarity percent 0..100 (default: 90)
+  
+  -t, --threshold, --coverage-threshold <pct>   Coverage similarity percent 0..100 (default: 90)
 
   Env: MODE, STACK_FRAMES, INCLUDE_LINES, THRESHOLD
 
@@ -236,12 +225,11 @@ Positional arguments
 
 ──────────────────────────── Docker / runtime
 
-  -i, --image <name>         Docker image (default: aflplusplus/aflplusplus)
-  -w, --workdir <dir>        Container mount point (default: /work)
-  -H, --hostdir <dir>        Host directory to mount (default: $PWD)
-  -T, --timeout <duration>        Per-input timeout used inside the container (default: 20s).
-      
-
+  -i, --image <name>                  Docker image (default: aflplusplus/aflplusplus)
+  -w, --workdir, --work-dir <dir>     Container mount point (default: /work)
+  -H, --hostdir, --host-dir <dir>     Host directory to mount (default: $PWD)
+  -T, --timeout <duration>            Per-input timeout used inside the container (default: 20s).
+                                      Accepts plain seconds or a suffix: s, m, h, d.
 
   Env: IMAGE, WORK_DIR, HOST_DIR, DOCKER_TIMEOUT
        (DOCKER_TIMEOUT default: 20s; passed to `timeout` inside the container)
@@ -271,7 +259,7 @@ Positional arguments
   -d, --debug, --debug-log   Write a detailed clustering decision log
   -h, --help                 Show this help and exit
 
-Env: VERBOSE DEBUG_LOG
+Env: VERBOSE, DEBUG_LOG, NO_COLOR, ENV_FILE
 
 Requirements
   - Docker must be available in PATH.
@@ -347,7 +335,7 @@ while (( $# > 0 )); do
     -d|--debug|--debug-log)                 DEBUG_LOG=1; shift ;;
     -h|--help)                              show_help; exit 0 ;;
     --)                                     shift; break ;;
-    -*)                                     LOG_ERROR "Unknown option: %s\n" "$1"; show_help; exit 1 ;;
+    -*)                                     LOG_ERROR "Unknown option: %s" "$1"; show_help; exit 1 ;;
     *)                                      args+=("$1"); shift ;;
   esac
 done
@@ -409,6 +397,7 @@ resolve_realpath(){
   printf '%s/%s\n' "$dir_part" "$file_part"
 }
 
+
 absolute_path(){
   case "$1" in
     /*) resolve_realpath "$1" ;;
@@ -418,7 +407,12 @@ absolute_path(){
 
 require_under_host_dir(){
   local abs host_dir_abs
-  abs="$(resolve_realpath "$1")" || return 1
+  if ! abs="$(resolve_realpath "$1")"; then
+    local parent base
+    parent="$(resolve_realpath "$(dirname "$1")")" || return 1
+    base="$(basename "$1")"
+    abs="$parent/$base"
+  fi
   host_dir_abs="$(resolve_realpath "$HOST_DIR")" || return 1
 
   [[ "$abs" == "$host_dir_abs"/* ]] || {
@@ -565,7 +559,7 @@ assert_safe_host_dir(){
 
 assert_safe_host_dir
 
-LOG_WARN "\nDocker: mounting host directory: '%s' → '%s'\n" "$HOST_DIR" "$WORK_DIR"
+LOG_WARN "Docker: mounting host directory: '%s' → '%s'\n" "$HOST_DIR" "$WORK_DIR"
 
 require_under_host_dir "$CRASH_DIR"
 require_under_host_dir "$TARGET_BIN"
@@ -584,7 +578,7 @@ fi
 
 require_under_host_dir "$OUT_BASE"
 
-mkdir -p "$OUT_BASE" || { LOG_ERROR "Error: Cannot create output dir: %s\n" "$OUT_BASE"; exit 1; }
+mkdir -p "$OUT_BASE" || { LOG_ERROR "Error: Cannot create output dir: %s" "$OUT_BASE"; exit 1; }
 
 MANIFEST="${OUT_BASE%/}/triage2_manifest.csv"
 echo 'crashfile,group_key,group_dir,group_name,bug_type,exitcode,stack_source,stack_frames,cov_hits' > "$MANIFEST"
@@ -592,9 +586,16 @@ echo 'crashfile,group_key,group_dir,group_name,bug_type,exitcode,stack_source,st
 STACK_LOG="${OUT_BASE%/}/stack_reproduce.log"
 COVERAGE_LOG="${OUT_BASE%/}/coverage.log"
 LOG_FILE="${OUT_BASE%/}/triage2.log"
-: > "$STACK_LOG"
-: > "$COVERAGE_LOG"
-(( DEBUG_LOG )) && : > "$LOG_FILE"
+
+if [[ -z "${STAGE1_LOG:-}" && ( "$MODE" == "stack" || "$MODE" == "combined" ) ]]; then
+  : > "$STACK_LOG"
+fi
+
+if [[ "$MODE" == "coverage" || "$MODE" == "combined" ]]; then
+  : > "$COVERAGE_LOG"
+fi
+
+if (( DEBUG_LOG )); then : > "$LOG_FILE"; fi
 #-----------------------------------------------------------
 #                      Sanitizer options
 #-----------------------------------------------------------
@@ -666,7 +667,8 @@ print_effective_config(){ (
   print_conf() { printf '  %-22s %s\n' "$1" "$2"; }
 
   printf "\n"
-  LOG_INFO_PLAIN "=== Effective configuration ==="
+  printf "=== Effective configuration ===\n"
+  print_conf "Env file"                "${ENV_FILE:-<none>}"
   print_conf "Mode"                    "${MODE}"
   print_conf "Crash dir"               "${CRASH_DIR}"
   print_conf "Binary"                  "${TARGET_BIN}"
@@ -674,6 +676,7 @@ print_effective_config(){ (
   print_conf "Recursive"               "$(bool "${RECURSIVE}")"
   print_conf "Keep layout"             "$(bool "${KEEP_LAYOUT}")"
   print_conf "Link method"             "${LINK_METHOD}"
+  print_conf "Overwrite existing"      "$(bool "${OVERWRITE}")"
   print_conf "Stack frames"            "${STACK_FRAMES}"
   print_conf "Include line numbers"    "$(bool "${INCLUDE_LINES}")"
   print_conf "Coverage threshold (%)"  "${THRESHOLD}"
@@ -684,17 +687,19 @@ print_effective_config(){ (
   print_conf "Stage-1 log"             "${STAGE1_LOG:-<none>}"
   print_conf "ASAN_OPTIONS"            "${ASAN_OPTS}"
   print_conf "UBSAN_OPTIONS"           "${UBSAN_OPTS}"
-  LOG_INFO_PLAIN "==============================="
+  print_conf "Verbose output"          "$(bool "${VERBOSE}")"
+  print_conf "Debug log"               "$(bool "${DEBUG_LOG}")"
+  printf "===============================\n\n"
 ); }
 
-(( VERBOSE )) && print_effective_config
-(( DEBUG_LOG )) && print_effective_config >> "$LOG_FILE"
-
+if (( VERBOSE )); then print_effective_config >&2; fi
+if (( DEBUG_LOG )); then print_effective_config >> "$LOG_FILE"; fi
 
 #-----------------------------------------------------------
 #                Stack/Bug parsing helpers
 #-----------------------------------------------------------
 
+#deprecated
 extract_block_by_basename(){
   local base_name="$1"
   local log_path="$2"
@@ -727,20 +732,8 @@ extract_block_by_file(){
   base_name="${host_file_path##*/}"
   original_arg_path="$host_file_path"
 
-  if command -v readlink >/dev/null 2>&1; then
-    absolute_host_path="$(readlink -f "$host_file_path" 2>/dev/null || true)"
-    host_dir_abs="$(readlink -f "$HOST_DIR" 2>/dev/null || true)"
-  fi
-  if [ -z "${absolute_host_path:-}" ]; then
-    dir_part="$(cd "$(dirname "$host_file_path")" 2>/dev/null && pwd -P)" || return 1
-    file_part="$(basename "$host_file_path")"
-    absolute_host_path="$dir_part/$file_part"
-  fi
-  if [ -z "${host_dir_abs:-}" ]; then
-    host_dir_parent="$(cd "$(dirname "$HOST_DIR")" 2>/dev/null && pwd -P)" || return 1
-    host_dir_base="$(basename "$HOST_DIR")"
-    host_dir_abs="$host_dir_parent/$host_dir_base"
-  fi
+  absolute_host_path="$(resolve_realpath "$host_file_path")" || return 1
+  host_dir_abs="$(resolve_realpath "$HOST_DIR")" || return 1
 
   relative_under_host=""
   if [[ "$absolute_host_path" == "$host_dir_abs"/* ]]; then
@@ -751,7 +744,9 @@ extract_block_by_file(){
 
   local candidate_paths_joined="${original_arg_path}${SEP}${container_path}${SEP}${absolute_host_path}${SEP}${relative_under_host}"
 
-  awk -v desired_base_name="$base_name" -v candidate_list_joined="$candidate_paths_joined" '
+  awk -v desired_base_name="$base_name" \
+      -v candidate_list_joined="$candidate_paths_joined" \
+      -v SEP="$SEP" ' 
     function trim_carriage_return(string_value){ sub(/\r$/,"",string_value); return string_value }
     
     function ends_with(path,suffix){
@@ -769,7 +764,7 @@ extract_block_by_file(){
 
     BEGIN{
       record_count=0; in_block=0; current_base=""; current_path=""; current_block=""
-      candidate_count=split(candidate_list_joined, candidate_list, "\x1f")
+      candidate_count=split(candidate_list_joined, candidate_list, SEP)
     }
 
     /^<<<BEGIN>>> /{
@@ -964,7 +959,7 @@ coverage_key_from_block(){
   awk '
     BEGIN { unique_key_count = 0 }
 
-    /^[[:space:]]*[0-9]{6}:[0-9]+[[:space:]]*$/ {
+    /^[[:space:]]*[0-9]+:[0-9]+[[:space:]]*$/ {
       hit_id = $1
       sub(/:.*/, "", hit_id)
       hit_seen[hit_id] = 1
@@ -1011,16 +1006,19 @@ coverage_similarity_percent(){
 
   for id in $unique_a; do
     [[ -z "$id" ]] && continue
-    ((union++))
-    [[ " $unique_b " == *" $id "* ]] && ((intersection++))
+    ((++union))
+    [[ " $unique_b " == *" $id "* ]] && ((++intersection))
   done
 
   for id in $unique_b; do
     [[ -z "$id" ]] && continue
-    [[ " $unique_a " == *" $id "* ]] || ((union++))
+    [[ " $unique_a " == *" $id "* ]] || ((++union))
   done
 
-  (( union == 0 )) && { echo 100; return; }
+  if (( union == 0 )); then
+    echo 100
+    return 0
+  fi
   echo $(( intersection * 100 / union ))
 }
 
@@ -1035,19 +1033,39 @@ collect_input_files(){
   local maxdepth=()
   (( recursive )) || maxdepth=(-maxdepth 1)
 
-  find "$dir" "${maxdepth[@]}" -type f \
+  if [[ "$(resolve_realpath "$OUT_BASE")" == "$(resolve_realpath "$CRASH_DIR")" ]]; then
+    find "$dir" "${maxdepth[@]}" \
+      \( -type d \( -name 'stack_*' -o -name 'cov_*' -o -name 'group_*' -o -name 'triage' \) -prune \) -o \
+      -type f \
+        ! -name 'triage2_manifest.csv' \
+        ! -name 'stack_reproduce.log' \
+        ! -name 'coverage.log' \
+        ! -name 'triage2.log' \
+        ! -name 'README.txt' \
+        ! -name 'triage.log' \
+        ! -name 'manifest.csv' \
+      -print0
+    return
+  fi
+
+  local prune=()
+  case "$OUT_BASE" in
+    "$CRASH_DIR"/*) prune=(-path "$OUT_BASE" -prune -o) ;;
+  esac
+
+  find "$dir" "${maxdepth[@]}" \( "${prune[@]}" -type f \
     ! -name 'README.txt' \
     ! -name 'triage.log' \
-    ! -name 'manifest.csv' \
-    -print0
+    ! -name 'manifest.csv' \) -print0
 }
+
 
 while IFS= read -r -d '' f; do
   input_files+=("$f")
 done < <(collect_input_files "$CRASH_DIR" "$RECURSIVE")
 
 total_inputs=${#input_files[@]}
-(( total_inputs==0 )) && { LOG_ERROR "No files found in %s" "$CRASH_DIR"; exit 1; }
+if (( total_inputs==0 )); then { LOG_ERROR "No files found in %s" "$CRASH_DIR"; exit 1; }; fi
 LOG_INFO "Found %s files." "$total_inputs"
 
 destination_roots=()
@@ -1060,7 +1078,7 @@ for crash_file in "${input_files[@]}"; do
       break
     fi
   done
-  (( present == 0 )) && destination_roots+=("$dest")
+  if (( present == 0 )); then destination_roots+=("$dest"); fi
 done
 
 container_inputs=()
@@ -1086,7 +1104,8 @@ timeout_to_ms(){
 
 handle_runner_events(){
   local mode="$1" progress_label="$2"
-  local start_time end_time duration
+  local -a start_times=()
+  local end_time duration
 
   while IFS= read -r line; do
     case "$line" in
@@ -1094,21 +1113,26 @@ handle_runner_events(){
         IFS=$'\t' read -r tag event_type file_index total_files base_name <<< "$line"
 
         if [[ "$event_type" == "START" ]]; then
-          start_time=$(date +%s)
+          start_times[$file_index]=$(date +%s)
 
           if ((VERBOSE)); then
-            LOG_DEFAULT "[%s] [%d/%d] (t=%s) %s: %s\n" \
+            LOG_INFO_PLAIN "[%s] [%d/%d] (t=%s) %s: %s" \
             "$(date +%H:%M:%S)" "$file_index" "$total_files" "$DOCKER_TIMEOUT" "$progress_label" "$base_name"
           else
-            LOG_DEFAULT "\r[%d/%d] (t=%s) %s: %s\n"  \
+            [[ -t 2 ]] && LOG_DEFAULT "\r[%d/%d] (t=%s) %s: %s"  \
             "$file_index" "$total_files" "$DOCKER_TIMEOUT" "$progress_label" "$base_name"
           fi
 
-        elif [[ "$event_type" == "END" && "$mode" == "stack" ]]; then
+        elif [[ $VERBOSE -eq 1 && "$event_type" == "END" && "$mode" == "stack" ]]; then
           end_time=$(date +%s)
-          duration=$(( end_time - start_time ))
-          LOG_INFO "End of iteration [%s/%s], duration: %s" \
-          "$file_index" "$total_files" "$duration"
+          if [[ -n "${start_times[$file_index]:-}" ]]; then
+            duration=$(( end_time - start_times[$file_index] ))
+            LOG_INFO_PLAIN "[%s] End of iteration [%s/%s] %s, duration: %s\n\n" \
+              "$(date +%H:%M:%S)" "$file_index" "$total_files" "$base_name" "$duration"
+          else
+            LOG_INFO "Missing start time for file index %s (%s)" \
+              "$file_index" "$base_name"
+          fi
         fi
         ;;
       *)
@@ -1134,52 +1158,57 @@ run_container_loop(){
         fi
         printf "<<<EXIT>>> exit_code=%s\n" "$exit_code"
       '
-    ;;
+      ;;
     coverage)
       log_path="$COVERAGE_LOG"
-      progress_label="Collecting"
+      progress_label="Collecting coverage"
       inner_command='
         afl-showmap -o - -m none -t "$SHOWMAP_TIMEOUT" -C -- "$TARGET_BIN" < "$input_file" 2>/dev/null || true
       '
-    ;;
-    *)
-      LOG_ERROR "Invalid mode for container loop: %s" $mode
-      return 1
       ;;
+    *) LOG_ERROR "Invalid mode for container loop: %s" "$mode"; return 1 ;;
   esac
 
-
   docker run --rm -i \
-  --user "$(id -u):$(id -g)" \
-  --mount "type=bind,src=${HOST_DIR},dst=${WORK_DIR}" \
-  -w "${WORK_DIR}" \
-  -e "ASAN_OPTIONS=${ASAN_OPTS}" \
-  -e "UBSAN_OPTIONS=${UBSAN_OPTS}" \
-  -e "TARGET_BIN=$(to_container_path "$TARGET_BIN")" \
-  -e "DOCKER_TIMEOUT=${DOCKER_TIMEOUT}" \
-  -e "SHOWMAP_TIMEOUT=$(timeout_to_ms "$DOCKER_TIMEOUT")" \
-  -e "LOG_PATH=$(to_container_path "$log_path")" \
-  -e "TOTAL_FILES=$total_files" \
-  "$IMAGE" bash --noprofile --norc -c '
-    set -euo pipefail
-    : > "$LOG_PATH"
-    file_index=0
-    while IFS= read -r -d "" input_file; do
-      file_index=$((file_index+1))
-      base_name="${input_file##*/}"
-      printf "EVENT\tSTART\t%d\t%d\t%s\n" "$file_index" "$TOTAL_FILES" "$base_name" >&2
-      {
-        printf "<<<BEGIN>>> base=%s path=%s\n" "$base_name" "$input_file"
-        '"$inner_command"'
-        printf "<<<END>>> base=%s\n" "$base_name"
-      } >> "$LOG_PATH" 2>&1
-      printf "EVENT\tEND\t%d\t%d\t%s\n" "$file_index" "$TOTAL_FILES" "$base_name" >&2
-    done
-  ' 2> >(handle_runner_events "$mode" "$progress_label")
+    --user "$(id -u):$(id -g)" \
+    --mount "type=bind,src=${HOST_DIR},dst=${WORK_DIR}" \
+    -w "${WORK_DIR}" \
+    -e "ASAN_OPTIONS=${ASAN_OPTS}" \
+    -e "UBSAN_OPTIONS=${UBSAN_OPTS}" \
+    -e "TARGET_BIN=$(to_container_path "$TARGET_BIN")" \
+    -e "DOCKER_TIMEOUT=${DOCKER_TIMEOUT}" \
+    -e "SHOWMAP_TIMEOUT=$(timeout_to_ms "$DOCKER_TIMEOUT")" \
+    -e "LOG_PATH=$(to_container_path "$log_path")" \
+    -e "TOTAL_FILES=$total_files" \
+    -e "VERBOSE=$VERBOSE" \
+    "$IMAGE" bash --noprofile --norc -c '
+      set -euo pipefail
+      : > "$LOG_PATH"
+      file_index=0
+      while IFS= read -r -d "" input_file; do
+        file_index=$((file_index+1))
+        base_name="${input_file##*/}"
+        printf "EVENT\tSTART\t%d\t%d\t%s\n" "$file_index" "$TOTAL_FILES" "$base_name" >&2
+        if [[ "${VERBOSE:-0}" -eq 1 ]]; then
+          {
+            printf "<<<BEGIN>>> base=%s path=%s\n" "$base_name" "$input_file"
+            '"$inner_command"'
+            printf "<<<END>>> base=%s\n" "$base_name"
+          } 2>&1 | tee -a "$LOG_PATH" >&2
+        else
+          {
+            printf "<<<BEGIN>>> base=%s path=%s\n" "$base_name" "$input_file"
+            '"$inner_command"'
+            printf "<<<END>>> base=%s\n" "$base_name"
+          } >> "$LOG_PATH" 2>&1
+        fi
+        printf "EVENT\tEND\t%d\t%d\t%s\n" "$file_index" "$TOTAL_FILES" "$base_name" >&2
+      done
+    ' 2> >(handle_runner_events "$mode" "$progress_label")
 }
 
 #-----------------------------------------------------------
-#                       Stack extraction
+#            Stacktrace & Coverage Collection 
 #-----------------------------------------------------------
 
 set_map_value(){
@@ -1216,29 +1245,55 @@ stack_source_keys=();    stack_source_vals=()
 stack_frames_keys=();    stack_frames_vals=()
 exitcode_keys=();        exitcode_vals=()
 bug_type_keys=();        bug_type_vals=()
+cov_key_keys=();         cov_key_vals=()
 cov_hits_keys=();        cov_hits_vals=()
 
 
+coverage_key_for_file(){
+  local crash_file="$1"
+  local block cov_key id count
+
+  block="$(extract_block_by_file "$crash_file" "$COVERAGE_LOG" || true)"
+  cov_key="$(coverage_key_from_block <<< "$block")"
+
+  count=0
+  for id in $cov_key; do
+    [[ -n "$id" ]] && ((++count))
+  done
+
+  set_map_value cov_hits_keys cov_hits_vals "$crash_file" "$count"
+  set_map_value cov_key_keys  cov_key_vals "$crash_file" "$cov_key"
+  debug_log_key_value "COVERAGE" "file=$crash_file" "hits=$count" "key=$cov_key"
+}
+
 if [[ "$MODE" == "stack" || "$MODE" == "combined" ]]; then
   if [[ -n "$STAGE1_LOG" ]]; then
-    LOG_INFO "Using Stage-1 log for stack parsing: %s" "$STAGE1_LOG"
+    LOG_INFO "Using Stage-1 log for stack parsing: %s\n" "$STAGE1_LOG"
   else
-    LOG_DEFAULT "No Stage-1 log provided, reproducing crashes..."
+    LOG_DEFAULT "No Stage-1 log provided, reproducing crashes...\n\n"
     printf '%s\0' "${container_inputs[@]}" | run_container_loop "stack" "$total_inputs"
     STAGE1_LOG="$STACK_LOG"
     LOG_DEFAULT "done\n"
   fi
+fi 
+if [[ "$MODE" == "coverage" || "$MODE" == "combined" ]]; then
+    LOG_DEFAULT "Collecting coverage...\n"
+    printf '%s\0' "${container_inputs[@]}" | run_container_loop "coverage" "$total_inputs"
+    LOG_DEFAULT "done\n"
+fi
 
-  for crash_file in "${input_files[@]}"; do
-    base_name="${crash_file##*/}"
-    stack_block="$(extract_block_by_file "$crash_file" "$STAGE1_LOG")" || true
+for crash_file in "${input_files[@]}"; do
+  base_name="${crash_file##*/}"
+  if [[ "$MODE" == "stack" || "$MODE" == "combined" ]]; then
+      
+    stack_block="$(extract_block_by_file "$crash_file" "$STAGE1_LOG" || true)"
     stack_sig_raw="$(derive_stack_signature_from_text <<< "$stack_block")"
     set_map_value stack_signature_keys stack_signature_vals "$crash_file" "$stack_sig_raw"
     set_map_value stack_source_keys    stack_source_vals    "$crash_file" "${stack_sig_raw%%:*}"
     set_map_value stack_frames_keys    stack_frames_vals    "$crash_file" "${stack_sig_raw#*:}"
     set_map_value exitcode_keys        exitcode_vals        "$crash_file" "$(extract_exitcode_from_block <<< "$stack_block")"
     set_map_value bug_type_keys        bug_type_vals        "$crash_file" "$(bug_type_from_stack_block "$stack_block")"
-    
+     
     lookup_value stack_source_keys stack_source_vals "$crash_file" stack_src_parsed
     lookup_value stack_frames_keys stack_frames_vals "$crash_file" stack_frames_parsed
     lookup_value bug_type_keys     bug_type_vals     "$crash_file" bug_normalized
@@ -1250,35 +1305,15 @@ if [[ "$MODE" == "stack" || "$MODE" == "combined" ]]; then
       "frames=${stack_frames_parsed:-}" \
       "bug=${bug_normalized:-unknown}" \
       "exit=${exit_code_parsed:-NA}"
-  done
-fi
+  fi
+  if [[ "$MODE" == "coverage" || "$MODE" == "combined" ]]; then
+    cov_key=""
+    coverage_key_for_file "$crash_file" 
+    lookup_value cov_key_keys  cov_key_vals  "$crash_file" cov_key
+    [[ -z "$cov_key" ]] && LOG_WARN "empty coverage key for %s" "$crash_file"
+  fi
+done
 
-#-----------------------------------------------------------
-#                       Coverage run
-#-----------------------------------------------------------
-
-coverage_key_for_file(){
-  local crash_file="$1"
-  local block cov_key id count
-
-  block="$(extract_block_by_file "$crash_file" "$COVERAGE_LOG" 2>/dev/null || true)"
-  cov_key="$(coverage_key_from_block <<< "$block")"
-
-  count=0
-  for id in $cov_key; do
-    [[ -n "$id" ]] && ((count++))
-  done
-  set_map_value cov_hits_keys cov_hits_vals "$crash_file" "$count"
-
-  debug_log_key_value "COVERAGE" "file=$crash_file" "hits=$count" "key=$cov_key"
-  printf '%s\n' "$cov_key"
-}
-
-if [[ "$MODE" == "coverage" || "$MODE" == "combined" ]]; then
-  LOG_DEFAULT "Collecting coverage...\n"
-  printf '%s\0' "${container_inputs[@]}" | run_container_loop "coverage" "$total_inputs"
-  LOG_DEFAULT "done\n"
-fi
 
 #-----------------------------------------------------------
 #                     Manifest writer
@@ -1304,7 +1339,7 @@ write_manifest_row(){
     "${exit_code:-}" \
     "$(escape_csv "${stack_source:-}")" \
     "$(escape_csv "${stack_frames:-}")" \
-    "${cov_hits:-}" \
+    "$(escape_csv "${cov_hits:-}")" \
     >> "$MANIFEST"
 }
 
@@ -1367,7 +1402,7 @@ assign_groups_by_coverage_threshold(){ # "coverage_key<TAB>file_path"
         placed=1; break
       fi
     done
-    (( placed==1 )) && continue
+    if (( placed==1 )); then continue; fi
     # <100
     if (( THRESHOLD < 100 )); then
       for i in "${!representative_keys[@]}"; do
@@ -1396,7 +1431,7 @@ assign_groups_by_coverage_threshold(){ # "coverage_key<TAB>file_path"
         fi
       done
     fi
-    (( placed==1 )) && continue
+    if (( placed==1 )); then continue; fi
     # new group
     debug_log_key_value "COMPARE" "mode=cov" \
       "file=$file_path" \
@@ -1466,7 +1501,7 @@ assign_groups_by_AND_flat(){
       fi
     done
 
-    (( placed==1 )) && continue
+    if (( placed==1 )); then continue; fi
     group_counter=$((group_counter+1))
     local new_group_dir="${destination_root%/}/group_$(printf "%03d" "$group_counter")"
     mkdir -p "$new_group_dir"
@@ -1498,7 +1533,6 @@ case "$MODE" in
         for crash_file in "${input_files[@]}"; do
           [[ "$(destination_base_for_file "$crash_file")" != "$destination_root" ]] && continue
           lookup_value stack_signature_keys stack_signature_vals "$crash_file" stack_sig
-          LOG_INFO_PLAIN '%s\t%s' "$stack_sig" "$crash_file"
           printf '%s\t%s\n' "$stack_sig" "$crash_file"
         done
       } | assign_groups_by_exact_key "$destination_root"
@@ -1506,13 +1540,11 @@ case "$MODE" in
     ;;
   coverage)
     for destination_root in "${destination_roots[@]}"; do
-     LOG_DEFAULT "Grouping by coverage (threshold=%s%%) → %s\n" "$THRESHOLD" "$destination_root"
+      LOG_DEFAULT "Grouping by coverage (threshold=%s%%) → %s\n" "$THRESHOLD" "$destination_root"
       {
         for crash_file in "${input_files[@]}"; do
           [[ "$(destination_base_for_file "$crash_file")" != "$destination_root" ]] && continue
-          cov_key="$(coverage_key_for_file "$crash_file")"
-          [[ -z "$cov_key" ]] && LOG_WARN "empty coverage key for %s" "$crash_file"
-          LOG_INFO_PLAIN '%s\t%s' "$cov_key" "$crash_file"
+          lookup_value cov_key_keys     cov_key_vals     "$crash_file" cov_key
           printf '%s\t%s\n' "$cov_key" "$crash_file"
         done
       } | assign_groups_by_coverage_threshold "$destination_root"
@@ -1525,8 +1557,7 @@ combined)
         for crash_file in "${input_files[@]}"; do
           [[ "$(destination_base_for_file "$crash_file")" != "$destination_root" ]] && continue
           lookup_value stack_signature_keys stack_signature_vals "$crash_file" stack_sig
-          cov_key="$(coverage_key_for_file "$crash_file")"
-          LOG_INFO_PLAIN '%s\t%s\t%s' "$stack_sig" "$cov_key" "$crash_file"
+          lookup_value cov_key_keys     cov_key_vals     "$crash_file" cov_key
           printf '%s\t%s\t%s\n' "$stack_sig" "$cov_key" "$crash_file"
         done
       } | assign_groups_by_AND_flat "$destination_root"
@@ -1568,5 +1599,15 @@ fi
 
 LOG_DEFAULT "Stage 2 '%s' done → %s\n" "$MODE" "$OUT_BASE"
 LOG_DEFAULT "Manifest: %s\n" "$MANIFEST"
-[[ -f "$STACK_LOG"    && ( "$MODE" == "stack" || "$MODE" == "combined" ) ]] && LOG_DEFAULT "Stack log: %s\n" "$STACK_LOG"
-[[ -f "$COVERAGE_LOG" && ( "$MODE" == "coverage" || "$MODE" == "combined" ) ]] && LOG_DEFAULT "Coverage log: %s\n" "$COVERAGE_LOG"
+
+if [[ -z "${STAGE1_LOG:-}" && ( "$MODE" == "stack" || "$MODE" == "combined" ) ]]; then
+   [[ -f "$STACK_LOG" ]] && LOG_DEFAULT "Stack log: %s\n" "$STACK_LOG"
+fi
+
+if [[ "$MODE" == "coverage" || "$MODE" == "combined" ]]; then
+   [[ -f "$COVERAGE_LOG" ]] && LOG_DEFAULT "Coverage log: %s\n" "$COVERAGE_LOG"
+fi
+
+if (( DEBUG_LOG )); then
+  [[ -f "$LOG_FILE" ]] && LOG_DEFAULT "Debug log: %s\n" "$LOG_FILE"
+fi
